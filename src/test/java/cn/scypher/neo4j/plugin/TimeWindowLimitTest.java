@@ -9,14 +9,11 @@ import org.neo4j.driver.Record;
 import org.neo4j.harness.Neo4j;
 import org.neo4j.harness.Neo4jBuilders;
 
-import java.time.LocalDate;
-import java.time.OffsetTime;
-import java.time.ZonedDateTime;
-
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public class TimeWindowLimitTest {
     private Driver driver;
     private Neo4j embeddedDatabaseServer;
+    private Session session;
 
     @BeforeAll
     void initializeNeo4j() {
@@ -25,6 +22,8 @@ public class TimeWindowLimitTest {
                 .withProcedure(TimeWindowLimit.class)
                 .build();
         this.driver = GraphDatabase.driver(embeddedDatabaseServer.boltURI());
+        this.session = driver.session();
+        this.session.run("CREATE (n:GlobalVariable{timeGranularity:'localdatetime'})");
     }
 
     @AfterAll
@@ -33,11 +32,12 @@ public class TimeWindowLimitTest {
         this.embeddedDatabaseServer.close();
     }
 
+
     @Test
     public void testSnapshot() {
         System.out.println("testSnapshot");
         try (Session session = driver.session()) {
-            session.run("CALL scypher.snapshot(date('2015'))");
+            session.run("CALL scypher.snapshot(localdatetime('2015'))");
             Record record = session.run("MATCH (n:GlobalVariable) RETURN n.snapshot").single();
             System.out.println(record);
         }
@@ -47,8 +47,8 @@ public class TimeWindowLimitTest {
     public void testScope() {
         System.out.println("testScope");
         try (Session session = driver.session()) {
-            session.run("CALL scypher.scope({from:date('2015'),to:date('2023')})");
-            Record record = session.run("MATCH (n:GlobalVariable) RETURN n.scope_from,n.scope_to").single();
+            session.run("CALL scypher.scope({from:localdatetime('2015'),to:localdatetime('2023')})");
+            Record record = session.run("MATCH (n:GlobalVariable) RETURN n.scopeFrom,n.scopeTo").single();
             System.out.println(record);
         }
     }
