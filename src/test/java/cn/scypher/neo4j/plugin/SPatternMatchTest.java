@@ -12,7 +12,7 @@ import org.neo4j.harness.Neo4j;
 import org.neo4j.harness.Neo4jBuilders;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-public class SPatternLimitTest {
+public class SPatternMatchTest {
     private Driver driver;
     private Neo4j embeddedDatabaseServer;
 
@@ -20,7 +20,7 @@ public class SPatternLimitTest {
     void initializeNeo4j() {
         this.embeddedDatabaseServer = Neo4jBuilders.newInProcessBuilder()
                 .withDisabledServer()
-                .withFunction(SPatternLimit.class)
+                .withFunction(SPatternMatch.class)
                 .build();
         this.driver = GraphDatabase.driver(embeddedDatabaseServer.boltURI());
     }
@@ -31,13 +31,4 @@ public class SPatternLimitTest {
         this.embeddedDatabaseServer.close();
     }
 
-    @Test
-    public void testGetPropertyValue() {
-        System.out.println("testGetPropertyValue");
-        try (Session session = driver.session()) {
-            session.run("CREATE (:Object:Person)-[:OBJECT_PROPERTY]->(:Property{content:'name'})-[:PROPERTY_VALUE]->(:Value{content:'Nick'})");
-            Record record = session.run("MATCH (p:Person),p=() RETURN scypher.getPropertyValue(p,'name')").single();
-            System.out.println(record);
-        }
-    }
 }

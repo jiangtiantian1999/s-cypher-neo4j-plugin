@@ -7,13 +7,10 @@ import org.neo4j.graphdb.Transaction;
 
 public class GlobalVariableManage {
 
-    public Transaction tx;
-
-    private Node globalVariableNode;
+    private final Node globalVariableNode;
 
     GlobalVariableManage(Transaction tx) {
-        this.tx = tx;
-        ResourceIterator<Node> nodes = this.tx.findNodes(Label.label("GlobalVariable"));
+        ResourceIterator<Node> nodes = tx.findNodes(Label.label("GlobalVariable"));
         if (nodes.hasNext()) {
             this.globalVariableNode = nodes.next();
         } else {

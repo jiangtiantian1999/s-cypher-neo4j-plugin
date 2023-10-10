@@ -20,15 +20,18 @@ public class SDate {
         if (dateString.equalsIgnoreCase("NOW")) {
             this.date = LocalDate.MAX;
         } else {
-            Pattern datePattern = Pattern.compile("(?<year>\\d{4})(-?((?<month>\\d{2})(-?(?<day>\\d{2})?)|" +
+            Pattern datePattern = Pattern.compile("((?<year>\\d{4})|(?<beyondYear>(\\+|-)\\d{1,9}))(-?((?<month>\\d{2})(-?(?<day>\\d{2})?)|" +
                     "(W(?<week>\\d{2})(-?(?<dayOfWeek>\\d))?)|" +
                     "(Q(?<quarter>\\d)(-?(?<dayOfQuarter>\\d{2}))?)|(?<ordinalDay>\\d{3})))?");
             Matcher matcher = datePattern.matcher(dateString.trim());
             Map<String, Integer> dateMap = new HashMap<>();
-            String[] dateComponents = {"year", "month", "day", "week", "dayOfWeek", "quarter", "dayOfQuarter", "ordinalDay"};
+            String[] dateComponents = {"year", "beyondYear", "month", "day", "week", "dayOfWeek", "quarter", "dayOfQuarter", "ordinalDay"};
             if (matcher.find()) {
                 for (String component : dateComponents) {
                     if (matcher.group(component) != null) {
+                        if (component.equals("beyondYear")) {
+                            dateMap.put("year", Integer.parseInt(matcher.group(component)));
+                        }
                         dateMap.put(component, Integer.parseInt(matcher.group(component)));
                     }
                 }
@@ -57,12 +60,16 @@ public class SDate {
         }
     }
 
-    public boolean isBefore(SDate timePoint) {
-        return this.date.isBefore(timePoint.getDate());
+    public SDuration difference(SDate date) {
+        return new SDuration(Duration.between(this.date, date.getDate()));
     }
 
-    public boolean isAfter(SDate timePoint) {
-        return this.date.isAfter(timePoint.getDate());
+    public boolean isBefore(SDate date) {
+        return this.date.isBefore(date.getDate());
+    }
+
+    public boolean isAfter(SDate date) {
+        return this.date.isAfter(date.getDate());
     }
 
     public LocalDate getDate() {
@@ -112,9 +119,7 @@ public class SDate {
         } else if (dateMap.containsKey("ordinalDay")) {
             return LocalDate.ofYearDay(year, dateMap.get("ordinalDay"));
         }
-        return null;
+        return LocalDate.of(year, 1, 1);
     }
-
-
 }
 

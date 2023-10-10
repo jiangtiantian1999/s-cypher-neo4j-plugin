@@ -1,6 +1,8 @@
 package cn.scypher.neo4j.plugin.datetime;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.Map;
 
 public class SLocalDateTime {
@@ -19,12 +21,12 @@ public class SLocalDateTime {
             this.localdatetime = LocalDateTime.MAX;
         } else {
             String[] localdatetimeStringList = localdatetimeString.split("T");
+            SDate date = new SDate(localdatetimeStringList[0]);
             if (localdatetimeStringList.length == 2) {
-                SDate date = new SDate(localdatetimeStringList[0]);
                 SLocalTime time = new SLocalTime(localdatetimeStringList[1]);
                 this.localdatetime = LocalDateTime.of(date.getDate(), time.getLocalTime());
             } else {
-                throw new RuntimeException("The format of the localdatetime string is incorrect.");
+                this.localdatetime = LocalDateTime.of(date.getDate(), LocalTime.MIN);
             }
         }
     }
@@ -35,12 +37,16 @@ public class SLocalDateTime {
         this.localdatetime = LocalDateTime.of(date.getDate(), localtime.getLocalTime());
     }
 
-    public boolean isBefore(SLocalDateTime timePoint) {
-        return this.localdatetime.isBefore(timePoint.getLocalDateTime());
+    public SDuration difference(SLocalDateTime localdatetime) {
+        return new SDuration(Duration.between(this.localdatetime, localdatetime.getLocalDateTime()));
     }
 
-    public boolean isAfter(SLocalDateTime timePoint) {
-        return this.localdatetime.isAfter(timePoint.getLocalDateTime());
+    public boolean isBefore(SLocalDateTime localdatetime) {
+        return this.localdatetime.isBefore(localdatetime.getLocalDateTime());
+    }
+
+    public boolean isAfter(SLocalDateTime localdatetime) {
+        return this.localdatetime.isAfter(localdatetime.getLocalDateTime());
     }
 
     public LocalDateTime getLocalDateTime() {

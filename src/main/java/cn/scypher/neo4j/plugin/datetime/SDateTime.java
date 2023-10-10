@@ -24,12 +24,12 @@ public class SDateTime {
             }
         } else {
             String[] datetimeStringList = datetimeString.split("T");
+            SDate date = new SDate(datetimeStringList[0]);
             if (datetimeStringList.length == 2) {
-                SDate date = new SDate(datetimeStringList[0]);
                 STime time = new STime(datetimeStringList[1], timezone);
                 this.datetime = ZonedDateTime.of(date.getDate(), time.getTime().toLocalTime(), time.getTime().getOffset());
             } else {
-                throw new RuntimeException("The format of the datetime string is incorrect.");
+                this.datetime = ZonedDateTime.of(date.getDate(), LocalTime.MIN, ZoneOffset.of(timezone));
             }
         }
     }
@@ -47,12 +47,16 @@ public class SDateTime {
         this.datetime = ZonedDateTime.of(date.getDate(), time.getTime().toLocalTime(), time.getTime().getOffset());
     }
 
-    public boolean isBefore(SDateTime timePoint) {
-        return this.datetime.isBefore(timePoint.getDateTime());
+    public SDuration difference(SDateTime datetime) {
+        return new SDuration(Duration.between(this.datetime, datetime.getDateTime()));
     }
 
-    public boolean isAfter(SDateTime timePoint) {
-        return this.datetime.isAfter(timePoint.getDateTime());
+    public boolean isBefore(SDateTime datetime) {
+        return this.datetime.isBefore(datetime.getDateTime());
+    }
+
+    public boolean isAfter(SDateTime datetime) {
+        return this.datetime.isAfter(datetime.getDateTime());
     }
 
     public ZonedDateTime getDateTime() {

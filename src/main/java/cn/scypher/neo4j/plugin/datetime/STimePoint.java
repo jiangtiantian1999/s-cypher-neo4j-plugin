@@ -1,17 +1,16 @@
 package cn.scypher.neo4j.plugin.datetime;
 
-
 import java.time.*;
 import java.util.Map;
 
-public class TimePoint {
+public class STimePoint {
     private final Object timePoint;
 
 
     /**
      * @param timePoint 为LocalDate、OffsetTime、LocalTime、ZonedDateTime或LocalDateTime类型
      */
-    public TimePoint(Object timePoint) {
+    public STimePoint(Object timePoint) {
         if (timePoint instanceof LocalDate) {
             this.timePoint = new SDate((LocalDate) timePoint);
         } else if (timePoint instanceof OffsetTime) {
@@ -32,47 +31,67 @@ public class TimePoint {
      * @param timePointType 时间点类型
      * @param timezone      默认时区
      */
-    public TimePoint(Object timePoint, String timePointType, String timezone) {
-        if (!(timePoint instanceof String) && !(timePoint instanceof Map)) {
-            throw new RuntimeException("The input of time point must be String or Map.");
-        }
-        if (timePointType.equals(LocalDate.class.toString())) {
-            if (timePoint.getClass().toString().equals(String.class.toString())) {
-                this.timePoint = new SDate((String) timePoint);
+    public STimePoint(Object timePoint, String timePointType, String timezone) {
+        if (timePoint instanceof String | timePoint instanceof Map) {
+            if (timePointType.equals("date")) {
+                if (timePoint instanceof String) {
+                    this.timePoint = new SDate((String) timePoint);
+                } else {
+                    this.timePoint = new SDate((Map<String, Integer>) timePoint);
+                }
+            } else if (timePointType.equals("time")) {
+                if (timePoint instanceof String) {
+                    this.timePoint = new STime((String) timePoint, timezone);
+                } else {
+                    this.timePoint = new STime((Map<String, Object>) timePoint, timezone);
+                }
+            } else if (timePointType.equals("localtime")) {
+                if (timePoint instanceof String) {
+                    this.timePoint = new SLocalTime((String) timePoint);
+                } else {
+                    this.timePoint = new SLocalTime((Map<String, Integer>) timePoint);
+                }
+            } else if (timePointType.equals("datetime")) {
+                if (timePoint instanceof String) {
+                    this.timePoint = new SDateTime((String) timePoint, timezone);
+                } else {
+                    this.timePoint = new SDateTime((Map<String, Object>) timePoint, timezone);
+                }
+            } else if (timePointType.equals("localdatetime")) {
+                if (timePoint instanceof String) {
+                    this.timePoint = new SLocalDateTime((String) timePoint);
+                } else {
+                    this.timePoint = new SLocalDateTime((Map<String, Integer>) timePoint);
+                }
             } else {
-                this.timePoint = new SDate((Map<String, Integer>) timePoint);
-            }
-        } else if (timePointType.equals(OffsetTime.class.toString())) {
-            if (timePoint.getClass().toString().equals(String.class.toString())) {
-                this.timePoint = new STime((String) timePoint, timezone);
-            } else {
-                this.timePoint = new STime((Map<String, Object>) timePoint, timezone);
-            }
-        } else if (timePointType.equals(LocalTime.class.toString())) {
-            if (timePoint.getClass().toString().equals(String.class.toString())) {
-                this.timePoint = new SLocalTime((String) timePoint);
-            } else {
-                this.timePoint = new SLocalTime((Map<String, Integer>) timePoint);
-            }
-        } else if (timePointType.equals(ZonedDateTime.class.toString())) {
-            if (timePoint.getClass().toString().equals(String.class.toString())) {
-                this.timePoint = new SDateTime((String) timePoint, timezone);
-            } else {
-                this.timePoint = new SDateTime((Map<String, Object>) timePoint, timezone);
-            }
-        } else if (timePointType.equals(LocalDateTime.class.toString())) {
-            if (timePoint.getClass().toString().equals(String.class.toString())) {
-                this.timePoint = new SLocalDateTime((String) timePoint);
-            } else {
-                this.timePoint = new SLocalDateTime((Map<String, Integer>) timePoint);
+                throw new RuntimeException("The type of time point must be 'LocalDate', 'OffsetTime', 'LocalTime', 'ZonedDateTime' or 'LocalDateTime'.");
             }
         } else {
-            throw new RuntimeException("The type of time point must be 'LocalDate', 'OffsetTime', 'LocalTime', 'ZonedDateTime' or 'LocalDateTime'.");
+            throw new RuntimeException("The input of time point must be String or Map.");
         }
     }
 
-    public boolean isBefore(TimePoint timePoint) {
-        if (this.timePoint.getClass() == timePoint.getTimePoint().getClass()) {
+    public SDuration difference(STimePoint timePoint) {
+        if (this.getTimePointType().equals(timePoint.getTimePointType())) {
+            if (this.timePoint instanceof SDate) {
+                return ((SDate) this.timePoint).difference((SDate) timePoint.getTimePoint());
+            } else if (this.timePoint instanceof STime) {
+                return ((STime) this.timePoint).difference((STime) timePoint.getTimePoint());
+            } else if (this.timePoint instanceof SLocalTime) {
+                return ((SLocalTime) this.timePoint).difference((SLocalTime) timePoint.getTimePoint());
+            } else if (this.timePoint instanceof SDateTime) {
+                return ((SDateTime) this.timePoint).difference((SDateTime) timePoint.getTimePoint());
+            } else if (this.timePoint instanceof SLocalDateTime) {
+                return ((SLocalDateTime) this.timePoint).difference((SLocalDateTime) timePoint.getTimePoint());
+            }
+            return null;
+        } else {
+            throw new RuntimeException("Only the time points of the same type can make a difference.");
+        }
+    }
+
+    public boolean isBefore(STimePoint timePoint) {
+        if (this.getTimePointType().equals(timePoint.getTimePointType())) {
             if (this.timePoint instanceof SDate) {
                 return ((SDate) this.timePoint).isBefore((SDate) timePoint.getTimePoint());
             } else if (this.timePoint instanceof STime) {
@@ -84,14 +103,14 @@ public class TimePoint {
             } else if (this.timePoint instanceof SLocalDateTime) {
                 return ((SLocalDateTime) this.timePoint).isBefore((SLocalDateTime) timePoint.getTimePoint());
             }
+            return false;
         } else {
             throw new RuntimeException("Only the time points of the same type can be compared.");
         }
-        return false;
     }
 
-    public boolean isAfter(TimePoint timePoint) {
-        if (this.timePoint.getClass() == timePoint.getTimePoint().getClass()) {
+    public boolean isAfter(STimePoint timePoint) {
+        if (this.getTimePointType().equals(timePoint.getTimePointType())) {
             if (this.timePoint instanceof SDate) {
                 return ((SDate) this.timePoint).isAfter((SDate) timePoint.getTimePoint());
             } else if (this.timePoint instanceof STime) {
@@ -103,12 +122,26 @@ public class TimePoint {
             } else if (this.timePoint instanceof SLocalDateTime) {
                 return ((SLocalDateTime) this.timePoint).isAfter((SLocalDateTime) timePoint.getTimePoint());
             }
+            return false;
         } else {
             throw new RuntimeException("Only the time points of the same type can be compared.");
         }
-        return false;
     }
 
+    public String getTimePointType() {
+        if (this.timePoint instanceof SDate) {
+            return "date";
+        } else if (this.timePoint instanceof STime) {
+            return "time";
+        } else if (this.timePoint instanceof LocalTime) {
+            return "localtime";
+        } else if (this.timePoint instanceof SDateTime) {
+            return "datetime";
+        } else if (this.timePoint instanceof SLocalDateTime) {
+            return "localdatetime";
+        }
+        return null;
+    }
 
     public static String getTimePointType(String timePointClass) {
         if (timePointClass.equals(LocalDate.class.toString())) {
@@ -126,18 +159,13 @@ public class TimePoint {
     }
 
     /**
-     *
      * @return 返回SDate、STime、SLocalTime、SDateTime或SLocalDateTime
      */
     public Object getTimePoint() {
         return this.timePoint;
     }
 
-
-
-
     /**
-     *
      * @return 返回LocalDate、OffsetTime、LocalTime、ZonedDateTime或LocalDateTime
      */
     public Object getSystemTimePoint() {

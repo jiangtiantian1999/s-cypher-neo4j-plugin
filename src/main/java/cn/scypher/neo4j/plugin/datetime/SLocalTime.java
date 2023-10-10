@@ -1,5 +1,6 @@
 package cn.scypher.neo4j.plugin.datetime;
 
+import java.time.Duration;
 import java.time.LocalTime;
 import java.util.HashMap;
 import java.util.Map;
@@ -55,12 +56,16 @@ public class SLocalTime {
         this.localtime = this.parseLocalTimeMap(localtimeMap);
     }
 
-    public boolean isBefore(SLocalTime timePoint) {
-        return this.localtime.isBefore(timePoint.getLocalTime());
+    public SDuration difference(SLocalTime localtime) {
+        return new SDuration(Duration.between(this.localtime, localtime.getLocalTime()));
     }
 
-    public boolean isAfter(SLocalTime timePoint) {
-        return this.localtime.isAfter(timePoint.getLocalTime());
+    public boolean isBefore(SLocalTime localtime) {
+        return this.localtime.isBefore(localtime.getLocalTime());
+    }
+
+    public boolean isAfter(SLocalTime localtime) {
+        return this.localtime.isAfter(localtime.getLocalTime());
     }
 
 

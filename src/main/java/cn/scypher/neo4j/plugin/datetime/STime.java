@@ -77,12 +77,16 @@ public class STime {
         }
     }
 
-    public boolean isBefore(STime timePoint) {
-        return this.time.isBefore(timePoint.getTime());
+    public SDuration difference(STime time) {
+        return new SDuration(Duration.between(this.time, time.getTime()));
     }
 
-    public boolean isAfter(STime timePoint) {
-        return this.time.isAfter(timePoint.getTime());
+    public boolean isBefore(STime time) {
+        return this.time.isBefore(time.getTime());
+    }
+
+    public boolean isAfter(STime time) {
+        return this.time.isAfter(time.getTime());
     }
 
 
