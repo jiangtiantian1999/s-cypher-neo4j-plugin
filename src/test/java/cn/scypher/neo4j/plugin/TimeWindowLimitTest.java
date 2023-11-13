@@ -25,8 +25,6 @@ public class TimeWindowLimitTest {
                 .build();
         this.driver = GraphDatabase.driver(embeddedDatabaseServer.boltURI());
         this.session = driver.session();
-        this.session.run("CREATE (n:GlobalVariable {timeGranularity: 'localdatetime'})");
-        this.session.run("CALL scypher.scope({from: localdatetime('2015'), to: localdatetime('2023')})");
     }
 
     @AfterAll
@@ -49,7 +47,7 @@ public class TimeWindowLimitTest {
     public void testSnapshot() {
         System.out.println("testSnapshot");
         this.session.run("CALL scypher.snapshot(localdatetime('2015'))");
-        Record record = this.session.run("MATCH (n:GlobalVariable) RETURN n.snapshot").single();
+        Record record = this.session.run("RETURN scypher.operateTime()").single();
         System.out.println(record);
     }
 
@@ -57,7 +55,7 @@ public class TimeWindowLimitTest {
     public void testScope() {
         System.out.println("testScope");
         this.session.run("CALL scypher.scope({from: localdatetime('2015'),to: localdatetime('2023')})");
-        Record record = this.session.run("MATCH (n:GlobalVariable) RETURN n.scopeFrom, n.scopeTo").single();
+        Record record = this.session.run("RETURN scypher.operateTime()").single();
         System.out.println(record);
     }
 }

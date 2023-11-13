@@ -20,7 +20,7 @@ public class SDate {
         if (dateString.equalsIgnoreCase("NOW")) {
             this.date = LocalDate.MAX;
         } else {
-            Pattern datePattern = Pattern.compile("((?<year>\\d{4})|(?<beyondYear>(\\+|-)\\d{1,9}))(-?((?<month>\\d{2})(-?(?<day>\\d{2})?)|" +
+            Pattern datePattern = Pattern.compile("((?<year>\\d{4})|(?<beyondYear>((\\+)|-)\\d{1,9}))(-?((?<month>\\d{2})(-?(?<day>\\d{2})?)|" +
                     "(W(?<week>\\d{2})(-?(?<dayOfWeek>\\d))?)|" +
                     "(Q(?<quarter>\\d)(-?(?<dayOfQuarter>\\d{2}))?)|(?<ordinalDay>\\d{3})))?");
             Matcher matcher = datePattern.matcher(dateString.trim());

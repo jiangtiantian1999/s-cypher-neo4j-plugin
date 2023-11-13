@@ -5,153 +5,142 @@ import cn.scypher.neo4j.plugin.datetime.STimePoint;
 import org.neo4j.graphdb.*;
 import org.neo4j.procedure.*;
 
+import java.time.*;
 import java.util.Map;
 
 public class TimeWindowLimit {
-    @Context
-    public Transaction tx;
 
     /**
-     * @return 获取scope语句设置的时间区间
-     */
-    public SInterval getScopeInterval() {
-        ResourceIterator<Node> nodes = tx.findNodes(Label.label("GlobalVariable"));
-        if (nodes.hasNext()) {
-            Node node = nodes.next();
-            if (node.hasProperty("scope")) {
-                return new SInterval(new STimePoint(node.getProperty("scopeFrom")), new STimePoint(node.getProperty("scopeTo")));
-            }
-        }
-        return null;
-    }
-
-    /**
-     * @return 获取snapshot语句设置的时间点
-     */
-    public STimePoint getSnapshotTimePoint() {
-        ResourceIterator<Node> nodes = tx.findNodes(Label.label("GlobalVariable"));
-        if (nodes.hasNext()) {
-            Node node = nodes.next();
-            if (node.hasProperty("snapshot")) {
-                return new STimePoint(node.getProperty("snapshot"));
-            }
-        }
-        return null;
-    }
-
-
-    /**
-     * 用于在时态图查询语句中限制节点或边的有效时间
+     * 用于在时态图查询语句中限制节点和关系的有效时间
      *
-     * @param element    节点或边，为Node或Relationship类型
-     * @param timeWindow 限制对象节点的有效时间，为时间点类型或Map类型（具有两个key：FROM和TO，value为时间点类型）
-     * @return 节点和边的有效时间是否满足限制条件
+     * @param elements   节点/关系及其有效时间的限制
+     * @param timeWindow at time/between子句指定的为时间点类型/Map类型（具有两个key：FROM和TO，value为时间点类型）
+     * @return 节点和关系的有效时间是否满足限制条件
      */
-    @UserFunction("scypher.limitInterval")
-    @Description("Limit the effective time of node or relationship.")
-    public boolean limitInterval(@Name("element") Object element, @Name("timeWindow") Object timeWindow) {
-        if (element != null) {
-            // 获取节点或边的有效时间
-            SInterval elementInterval;
-            if (element instanceof Node) {
-                Object elementIntervalFrom = ((Node) element).getProperty("intervalFrom");
-                Object elementIntervalTo = ((Node) element).getProperty("intervalTo");
-                elementInterval = new SInterval(new STimePoint(elementIntervalFrom), new STimePoint(elementIntervalTo));
-            } else if (element instanceof Relationship) {
-                Object elementIntervalFrom = ((Relationship) element).getProperty("intervalFrom");
-                Object elementIntervalTo = ((Relationship) element).getProperty("intervalTo");
-                elementInterval = new SInterval(new STimePoint(elementIntervalFrom), new STimePoint(elementIntervalTo));
-            } else {
-                throw new RuntimeException("The element must be node or relationship.");
-            }
-
+    @UserFunction("scypher.limitEffectiveTime")
+    @Description("Limit the effective time of nodes and relationships.")
+    public boolean limitEffectiveTime(@Name("elements") Map<Object, Object> elements, @Name("timeWindow") Object timeWindow) {
+        if (elements != null && !elements.isEmpty()) {
+            // snapshot/scope语句指定的时间区间
+            STimePoint snapshotTimePoint = GlobalVariablesManager.getSnapshotTimePoint();
+            SInterval scopeInterval = GlobalVariablesManager.getScopeInterval();
+            // at time/between子句指定的时间区间
+            STimePoint clauseTimePoint = null;
+            SInterval clauseInterval = null;
             if (timeWindow != null) {
-                // 优先受AT_TIME或BETWEEN语句限制
-                if (timeWindow instanceof Map) {
-                    SInterval limitInterval = new SInterval((Map<String, Object>) timeWindow);
-                    return elementInterval.overlaps(limitInterval);
+                if (timeWindow instanceof LocalDate | timeWindow instanceof OffsetTime | timeWindow instanceof LocalTime | timeWindow instanceof ZonedDateTime | timeWindow instanceof LocalDateTime) {
+                    clauseTimePoint = new STimePoint(timeWindow);
+                } else if (timeWindow instanceof Map) {
+                    clauseInterval = new SInterval((Map<String, Object>) timeWindow);
                 } else {
-                    // timeWindow为时间点类型
-                    STimePoint limitTimePoint = new STimePoint(timeWindow);
-                    return elementInterval.contains(limitTimePoint);
+                    throw new RuntimeException("Type mismatch: expected Date, Time, LocalTime, LocalDateTime, DateTime or Interval but was " + timeWindow.getClass().getSimpleName());
                 }
-            } else {
-                // 受SNAPSHOT或SCOPE限制
-                SInterval limitScopeInterval = getScopeInterval();
-                if (limitScopeInterval != null) {
-                    // 时序图查询语法优先受SCOPE限制
-                    return elementInterval.overlaps(limitScopeInterval);
+            }
+            for (Map.Entry<Object, Object> element : elements.entrySet()) {
+                // 节点或边的有效时间
+                SInterval elementEffectiveTime;
+                if (element.getKey() instanceof Node) {
+                    Node node = (Node) element;
+                    elementEffectiveTime = new SInterval(new STimePoint(node.getProperty("intervalFrom")), new STimePoint(node.getProperty("intervalTo")));
+                } else if (element.getKey() instanceof Relationship) {
+                    Relationship relationship = (Relationship) element;
+                    elementEffectiveTime = new SInterval(new STimePoint(relationship.getProperty("intervalFrom")), new STimePoint(relationship.getProperty("intervalTo")));
                 } else {
-                    // 受SNAPSHOT限制
-                    STimePoint limitSnapshotTimePoint = getSnapshotTimePoint();
-                    if (limitSnapshotTimePoint != null) {
-                        return elementInterval.contains(limitSnapshotTimePoint);
+                    throw new RuntimeException("The element to limit must be a node or relationship");
+                }
+                // @T指定的时间区间
+                STimePoint elementTimePoint = null;
+                SInterval elementInterval = null;
+                if (element.getValue() != null) {
+                    if (element.getValue() instanceof LocalDate | timeWindow instanceof OffsetTime | timeWindow instanceof LocalTime | timeWindow instanceof ZonedDateTime | timeWindow instanceof LocalDateTime) {
+                        elementTimePoint = new STimePoint(timeWindow);
+                    } else if (timeWindow instanceof Map) {
+                        elementInterval = new SInterval((Map<String, Object>) timeWindow);
+                    } else {
+                        throw new RuntimeException("Type mismatch: expected Date, Time, LocalTime, LocalDateTime, DateTime or Interval but was " + element.getValue().getClass().getSimpleName());
                     }
+                }
+                if (elementTimePoint != null | elementInterval != null) {
+                    // 优先受@T指定的时间区间限制
+                    if (elementTimePoint != null && elementEffectiveTime.contains(elementTimePoint)) {
+                        continue;
+                    } else if (elementInterval != null && elementEffectiveTime.contains(elementInterval)) {
+                        continue;
+                    }
+                    return false;
+                } else if (clauseTimePoint != null | clauseInterval != null) {
+                    // 次优先受at time/between子句指定的时间区间限制
+                    if (clauseTimePoint != null && elementEffectiveTime.contains(clauseTimePoint)) {
+                        continue;
+                    } else if (clauseInterval != null && elementEffectiveTime.contains(clauseInterval)) {
+                        continue;
+                    }
+                    return false;
+                } else if (snapshotTimePoint != null | scopeInterval != null) {
+                    // 最后受snapshot/scope语句指定的时间区间限制
+                    if (scopeInterval != null && elementEffectiveTime.contains(scopeInterval)) {
+                        // 时序图查询语法优先受SCOPE限制
+                        continue;
+                    } else if (snapshotTimePoint != null && elementEffectiveTime.contains(snapshotTimePoint)) {
+                        continue;
+                    }
+                    return false;
                 }
             }
             return true;
         } else {
-            throw new RuntimeException("Missing parameter element(a node or relationship).");
+            throw new RuntimeException("Missing parameter");
         }
     }
 
     /**
-     * @param timePoint 为时间点类型
+     * @param timePointObject 为时间点类型
      */
     @Procedure(name = "scypher.snapshot", mode = Mode.WRITE)
-    @Description("SNAPSHOT operation.")
-    public void snapshot(@Name("timePoint") Object timePoint) {
-        if (timePoint != null) {
-            String timePointType = STimePoint.getTimePointType(timePoint.getClass().toString());
-            if (timePointType != null) {
-                GlobalVariableManage globalVariableManage = new GlobalVariableManage(this.tx);
-                String timeGranularity = globalVariableManage.getTimeGranularity();
-                if (timeGranularity.equals(timePointType)) {
-                    globalVariableManage.setProperty("snapshot", timePoint);
-                } else {
-                    throw new RuntimeException("The time granularity can't match.The time granularity of database is '" + timeGranularity + "'.");
-                }
+    @Description("Do SNAPSHOT operation.")
+    public void snapshot(@Name("timePoint") Object timePointObject) {
+        if (timePointObject != null) {
+            STimePoint timePoint = new STimePoint(timePointObject);
+            String timePointType = GlobalVariablesManager.getTimePointType();
+            if (timePointType.equals(timePoint.getTimePointType())) {
+                GlobalVariablesManager.setSnapshotTimePoint(timePoint);
             } else {
-                throw new RuntimeException("Invalid call signature for SnapshotFunction: Provided input was " + timePoint.getClass() + ".");
+                throw new RuntimeException("The time point type can't match the system. The time point type of database is " + timePointType);
             }
         } else {
-            throw new RuntimeException("Missing parameter timePoint.");
+            GlobalVariablesManager.setSnapshotTimePoint(null);
         }
     }
 
     /**
-     * @param interval 为Map类型（具有两个key：from和to，value为时间点类型）
+     * @param intervalMap 为Map类型（具有两个key：from和to，value为时间点类型）
      */
     @Procedure(name = "scypher.scope", mode = Mode.WRITE)
-    @Description("SCOPE operation.")
-    public void scope(@Name("interval") Map<String, Object> interval) {
-        if (interval != null) {
-            String timePointType;
-            if (interval.containsKey("from") && interval.containsKey("to")) {
-                Object intervalFrom = interval.get("from");
-                Object intervalTo = interval.get("to");
-                if (intervalFrom.getClass() == intervalTo.getClass()) {
-                    timePointType = STimePoint.getTimePointType(intervalFrom.getClass().toString());
-                    if (timePointType != null) {
-                        GlobalVariableManage globalVariableManage = new GlobalVariableManage(this.tx);
-                        String timeGranularity = globalVariableManage.getTimeGranularity();
-                        if (timeGranularity.equals(timePointType)) {
-                            globalVariableManage.setProperty("scopeFrom", interval.get("from"));
-                            globalVariableManage.setProperty("scopeTo", interval.get("to"));
-                        } else {
-                            throw new RuntimeException("The time granularity can't match.The time granularity of database is '" + timeGranularity + "'.");
-                        }
-                    } else {
-                        throw new RuntimeException("Invalid call signature for ScopeFunction: Provided input was " + intervalFrom.getClass() + ".");
-                    }
-                } else {
-                    throw new RuntimeException("The type of interval.from and interval.to is different.");
-                }
+    @Description("Do SCOPE operation.")
+    public void scope(@Name("interval") Map<String, Object> intervalMap) {
+        if (intervalMap != null) {
+            SInterval interval = new SInterval(intervalMap);
+            String timePointType = GlobalVariablesManager.getTimePointType();
+            if (timePointType.equals(interval.getTimePointType())) {
+                GlobalVariablesManager.setScopeInterval(interval);
             } else {
-                throw new RuntimeException("Missing key 'from' or 'to' for the interval.");
+                throw new RuntimeException("The time point type of the interval can't match the system. The time point type of database is " + timePointType);
             }
         } else {
-            throw new RuntimeException("Missing parameter interval.");
+            GlobalVariablesManager.setScopeInterval(null);
+        }
+    }
+
+    @UserFunction("scypher.operateTime")
+    @Description("Get the default operate time.")
+    public Object operateTime() {
+        if (GlobalVariablesManager.getSnapshotTimePoint() == null) {
+            // 没有设置过默认操作时间
+            String timePointType = GlobalVariablesManager.getTimePointType();
+            String timezone = GlobalVariablesManager.getTimezone();
+            return (new STimePoint("NOW", timePointType, timezone)).getSystemTimePoint();
+        } else {
+            return GlobalVariablesManager.getSnapshotTimePoint().getSystemTimePoint();
         }
     }
 }
