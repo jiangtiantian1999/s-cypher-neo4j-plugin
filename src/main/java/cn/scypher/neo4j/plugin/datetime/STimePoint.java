@@ -9,21 +9,11 @@ public class STimePoint {
 
     public STimePoint(String timePointType, String timezone) {
         switch (timePointType) {
-            case "date" -> {
-                this.timePoint = new SDate();
-            }
-            case "time" -> {
-                this.timePoint = new STime(timezone);
-            }
-            case "localtime" -> {
-                this.timePoint = new SLocalTime();
-            }
-            case "datetime" -> {
-                this.timePoint = new SDateTime(timezone);
-            }
-            case "localdatetime" -> {
-                this.timePoint = new SLocalDateTime();
-            }
+            case "date" -> this.timePoint = new SDate();
+            case "time" -> this.timePoint = new STime(timezone);
+            case "localtime" -> this.timePoint = new SLocalTime();
+            case "datetime" -> this.timePoint = new SDateTime(timezone);
+            case "localdatetime" -> this.timePoint = new SLocalDateTime();
             default ->
                     throw new RuntimeException("The time point type must be date, time, localtime, datetime or localdatetime but was" + timePointType);
         }

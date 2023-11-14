@@ -2,7 +2,6 @@ package cn.scypher.neo4j.plugin;
 
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Path;
-import org.neo4j.graphdb.Transaction;
 import org.neo4j.procedure.*;
 
 import java.util.ArrayList;
@@ -11,9 +10,6 @@ import java.util.Map;
 import java.util.stream.Stream;
 
 public class TemporalPathQuery {
-
-    @Context
-    public Transaction tx;
 
     public static class TemporalPath {
         public Path path;
@@ -27,7 +23,7 @@ public class TemporalPathQuery {
      * @param startNode 开始节点
      * @param endNode   结束节点
      * @param pathInfo  路径的限制条件，为Map类型，可能包括路径的标签labels(List)、最小长度minLength(Integer)、最大长度maxLength(Integer)、路径的有效时间effectiveTime(时间点/时间区间)、路径的属性properties(Map<String, Object>)
-     * @return
+     * @return 返回连续有效路径
      */
     @Procedure(name = "scypher.cPath", mode = Mode.READ)
     @Description("Find the continuous paths meets the requirements.")
@@ -45,7 +41,7 @@ public class TemporalPathQuery {
      * @param startNode 开始节点
      * @param endNode   结束节点
      * @param pathInfo  路径的限制条件，为Map类型，可能包括路径的标签labels(List)、最小长度minLength(Integer)、最大长度maxLength(Integer)、路径的有效时间effectiveTime(时间点/时间区间)、路径的属性properties(Map<String, Object>)
-     * @return
+     * @return 返回成对连续有效路径
      */
     @Procedure(name = "scypher.pairCPath", mode = Mode.READ)
     @Description("Find the pairwise continuous paths meets the requirements.")
@@ -63,7 +59,7 @@ public class TemporalPathQuery {
      * @param startNode 开始节点
      * @param endNode   结束节点
      * @param pathInfo  路径的限制条件，为Map类型，可能包括路径的标签labels(List)、最小长度minLength(Integer)、最大长度maxLength(Integer)、路径的有效时间effectiveTime(时间点/时间区间)、路径的属性properties(Map<String, Object>)
-     * @return
+     * @return 返回最早顺序有效路径
      */
     @Procedure(name = "scypher.earliestSPath", mode = Mode.READ)
     @Description("Find the earliest sequential paths meets the requirements.")
@@ -81,7 +77,7 @@ public class TemporalPathQuery {
      * @param startNode 开始节点
      * @param endNode   结束节点
      * @param pathInfo  路径的限制条件，为Map类型，可能包括路径的标签labels(List)、最小长度minLength(Integer)、最大长度maxLength(Integer)、路径的有效时间effectiveTime(时间点/时间区间)、路径的属性properties(Map<String, Object>)
-     * @return
+     * @return 返回最迟顺序有效路径
      */
     @Procedure(name = "scypher.latestSPath", mode = Mode.READ)
     @Description("Find the latest sequential paths meets the requirements.")
@@ -99,7 +95,7 @@ public class TemporalPathQuery {
      * @param startNode 开始节点
      * @param endNode   结束节点
      * @param pathInfo  路径的限制条件，为Map类型，可能包括路径的标签labels(List)、最小长度minLength(Integer)、最大长度maxLength(Integer)、路径的有效时间effectiveTime(时间点/时间区间)、路径的属性properties(Map<String, Object>)
-     * @return
+     * @return 返回最快顺序有效路径
      */
     @Procedure(name = "scypher.fastestSPath", mode = Mode.READ)
     @Description("Find the fastest sequential paths meets the requirements.")
@@ -117,7 +113,7 @@ public class TemporalPathQuery {
      * @param startNode 开始节点
      * @param endNode   结束节点
      * @param pathInfo  路径的限制条件，为Map类型，可能包括路径的标签labels(List)、最小长度minLength(Integer)、最大长度maxLength(Integer)、路径的有效时间effectiveTime(时间点/时间区间)、路径的属性properties(Map<String, Object>)
-     * @return
+     * @return 返回最短顺序有效路径
      */
     @Procedure(name = "scypher.shortestSPath", mode = Mode.READ)
     @Description("Find the shortest sequential paths meets the requirements.")

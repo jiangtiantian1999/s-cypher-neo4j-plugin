@@ -54,4 +54,18 @@ public class ReadingQueryTest {
             System.out.println(record);
         }
     }
+
+    @Test
+    public void testGetPropertyEffectiveTime() {
+        System.out.println("testGetPropertyEffectiveTime");
+        this.session.run("CREATE (n:Person:Object {intervalFrom:scypher.timePoint('2010'), intervalTo:scypher.timePoint('NOW')})-[:OBJECT_PROPERTY]->" +
+                "(p:Property {content:'name', intervalFrom:scypher.timePoint('2010'), intervalTo:scypher.timePoint('NOW')})-[:PROPERTY_VALUE]->" +
+                "(v1:Value {content:'Nick', intervalFrom:scypher.timePoint('2010'), intervalTo:scypher.timePoint('2022')})," +
+                "(p)-[:PROPERTY_VALUE]->(v2:Value {content:'Tom', intervalFrom:scypher.timePoint('2023'), intervalTo:scypher.timePoint('NOW')})");
+        List<Record> records = this.session.run("MATCH (n:Person)" +
+                "RETURN scypher.getPropertyEffectiveTime(n,'name')").list();
+        for (Record record : records) {
+            System.out.println(record);
+        }
+    }
 }
