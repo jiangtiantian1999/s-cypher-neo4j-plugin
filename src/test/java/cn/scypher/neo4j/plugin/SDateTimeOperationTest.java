@@ -20,11 +20,9 @@ public class SDateTimeOperationTest {
         this.embeddedDatabaseServer = Neo4jBuilders.newInProcessBuilder()
                 .withDisabledServer()
                 .withFunction(SDateTimeOperation.class)
-                .withProcedure(TimeWindowLimit.class)
                 .build();
         this.driver = GraphDatabase.driver(embeddedDatabaseServer.boltURI());
         this.session = driver.session();
-        this.session.run("CREATE (n:GlobalVariable{timeGranularity: 'localdatetime'})");
     }
 
     @AfterAll
