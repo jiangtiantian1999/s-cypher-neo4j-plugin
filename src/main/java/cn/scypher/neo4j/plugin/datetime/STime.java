@@ -9,8 +9,8 @@ import java.util.regex.Pattern;
 public class STime {
     private final OffsetTime time;
 
-    public STime() {
-        this.time = OffsetTime.now(ZoneOffset.UTC);
+    public STime(String timezone) {
+        this.time = OffsetTime.now(ZoneOffset.of(timezone));
     }
 
     public STime(OffsetTime time) {

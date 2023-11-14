@@ -34,6 +34,13 @@ public class SDateTimeOperationTest {
     }
 
     @Test
+    public void testNow() {
+        System.out.println("testNow");
+        Record record = this.session.run("RETURN scypher.now()").single();
+        System.out.println(record);
+    }
+
+    @Test
     public void testTimePoint() {
         System.out.println("testTimePoint");
         Record record = this.session.run("RETURN scypher.timePoint('2010')").single();

@@ -14,7 +14,6 @@ public class SLocalTime {
         this.localtime = LocalTime.now();
     }
 
-
     public SLocalTime(LocalTime localTime) {
         this.localtime = localTime;
     }

@@ -7,8 +7,8 @@ import java.util.Map;
 public class SDateTime {
     private final ZonedDateTime datetime;
 
-    public SDateTime() {
-        this.datetime = ZonedDateTime.now(ZoneOffset.UTC);
+    public SDateTime(String timezone) {
+        this.datetime = ZonedDateTime.now(ZoneOffset.of(timezone));
     }
 
     public SDateTime(ZonedDateTime datetime) {

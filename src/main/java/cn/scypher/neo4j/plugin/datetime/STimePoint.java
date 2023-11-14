@@ -7,6 +7,27 @@ public class STimePoint {
     // 为LocalDate、OffsetTime、LocalTime、ZonedDateTime或LocalDateTime类型
     private final Object timePoint;
 
+    public STimePoint(String timePointType, String timezone) {
+        switch (timePointType) {
+            case "date" -> {
+                this.timePoint = new SDate();
+            }
+            case "time" -> {
+                this.timePoint = new STime(timezone);
+            }
+            case "localtime" -> {
+                this.timePoint = new SLocalTime();
+            }
+            case "datetime" -> {
+                this.timePoint = new SDateTime(timezone);
+            }
+            case "localdatetime" -> {
+                this.timePoint = new SLocalDateTime();
+            }
+            default ->
+                    throw new RuntimeException("The time point type must be date, time, localtime, datetime or localdatetime but was" + timePointType);
+        }
+    }
 
     /**
      * @param timePoint 为LocalDate、OffsetTime、LocalTime、ZonedDateTime或LocalDateTime类型

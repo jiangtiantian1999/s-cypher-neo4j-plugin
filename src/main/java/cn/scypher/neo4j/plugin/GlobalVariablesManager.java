@@ -2,9 +2,6 @@ package cn.scypher.neo4j.plugin;
 
 import cn.scypher.neo4j.plugin.datetime.SInterval;
 import cn.scypher.neo4j.plugin.datetime.STimePoint;
-import org.neo4j.graphdb.Node;
-
-import java.util.Map;
 
 public class GlobalVariablesManager {
 
