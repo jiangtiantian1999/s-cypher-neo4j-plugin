@@ -1,5 +1,6 @@
 package cn.scypher.neo4j.plugin;
 
+import cn.scypher.neo4j.plugin.datetime.SInterval;
 import cn.scypher.neo4j.plugin.datetime.STimePoint;
 import org.neo4j.graphdb.*;
 import org.neo4j.procedure.Description;
@@ -7,6 +8,7 @@ import org.neo4j.procedure.Name;
 import org.neo4j.procedure.UserFunction;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -190,18 +192,107 @@ public class UpdatingQuery {
     }
 
     /**
-     * @param objectInfo         对象节点/关系及其有效时间，为map类型，有两个key：objectNode和effectiveTime
-     * @param propertyInfo       属性名及属性节点的有效时间，为map类型，有两个key：propertyName和effectiveTime
-     * @param valueEffectiveTime 值节点的有效时间，为时间区间
-     * @param operateTime        set语句的操作时间，为时间点。修改值节点的有效时间时，修改在该时间有效的值节点的有效时间
-     * @return 以列表形式返回所有待设置的键值对，返回前需检查有效时间的约束
+     * @param objectInfo            对象节点/关系及其有效时间，为map类型，有两个key：object和effectiveTime
+     * @param propertyInfo          属性名及属性节点的有效时间，为map类型，有两个key：propertyName和effectiveTime
+     * @param valueEffectiveTimeMap 值节点的有效时间，为时间区间
+     * @param operateTime           set语句的操作时间，为时间点。修改值节点的有效时间时，修改在该时间有效的值节点的有效时间
+     * @return 返回对象节点/关系/属性节点/值节点及其待设置的有效时间，返回前需检查有效时间的约束
      */
     @UserFunction("scypher.getItemsToSetEffectiveTime")
-    @Description("Get the items to set their effective time.")
-    public List<Map<String, Object>> getItemsToSetEffectiveTime(@Name("objectInfo") Map<String, Object> objectInfo, @Name("propertyInfo") Map<String, Object> propertyInfo, @Name("valueEffectiveTime") Map<String, Object> valueEffectiveTime, @Name("operateTime") Object operateTime) {
+    @Description("Get the info of items to set effective time.")
+    public List<Map<String, Object>> getItemsToSetEffectiveTime(@Name("objectInfo") Map<String, Object> objectInfo, @Name("propertyInfo") Map<String, Object> propertyInfo, @Name("valueEffectiveTime") Map<String, Object> valueEffectiveTimeMap, @Name("operateTime") Object operateTime) {
         if (objectInfo != null) {
             List<Map<String, Object>> itemsToSetEffectiveTime = new ArrayList<>();
-            //TODO
+            // 修改对象节点/属性节点/值节点的有效时间
+            if (objectInfo.get("object") instanceof Node objectNode) {
+                SInterval objectEffectiveTime = null;
+                if (objectInfo.containsKey("effectiveTime")) {
+                    objectEffectiveTime = new SInterval((Map<String, Object>) objectInfo.get("effectiveTime"));
+                    // 检查对象节点的有效时间是否满足约束
+                    ResourceIterable<Relationship> relationships = objectNode.getRelationships();
+                    for (Relationship relationship : relationships) {
+                        if (!relationship.isType(RelationshipType.withName("OBJECT_PROPERTY")) && !relationship.isType(RelationshipType.withName("PROPERTY_VALUE"))) {
+                            SInterval relationshipEffectiveTime = new SInterval(new STimePoint(relationship.getProperty("intervalFrom")), new STimePoint(relationship.getProperty("intervalTo")));
+                            if (!objectEffectiveTime.contains(relationshipEffectiveTime)) {
+                                throw new RuntimeException("The effective time of object node must contain the effective time of it's relationships");
+                            }
+                        }
+                    }
+                    // 对象节点的有效时间满足约束
+                    Map<String, Object> objectNodeInfo = new HashMap<>();
+                    objectNodeInfo.put("item", objectNode);
+                    objectNodeInfo.put("intervalFrom", objectEffectiveTime.getIntervalFrom().getSystemTimePoint());
+                    objectNodeInfo.put("intervalTo", objectEffectiveTime.getIntervalTo().getSystemTimePoint());
+                    itemsToSetEffectiveTime.add(objectNodeInfo);
+                } else {
+                    objectEffectiveTime = new SInterval(new STimePoint(objectNode.getProperty("intervalFrom")), new STimePoint(objectNode.getProperty("intervalTo")));
+                }
+                if (propertyInfo != null) {
+                    Node propertyNode = ReadingQuery.getPropertyNode(objectNode, (String) propertyInfo.get("propertyName"));
+                    if (propertyNode != null) {
+                        SInterval propertyEffectiveTime;
+                        if (propertyInfo.containsKey("effectiveTime")) {
+                            propertyEffectiveTime = new SInterval((Map<String, Object>) (propertyInfo.get("effectiveTime")));
+                            // 检查属性节点的有效时间是否满足约束
+                            if (objectEffectiveTime.contains(propertyEffectiveTime)) {
+                                // 属性节点的有效时间满足约束
+                                Map<String, Object> propertyNodeInfo = new HashMap<>();
+                                propertyNodeInfo.put("item", propertyNode);
+                                propertyNodeInfo.put("intervalFrom", propertyEffectiveTime.getIntervalFrom().getSystemTimePoint());
+                                propertyNodeInfo.put("intervalTo", propertyEffectiveTime.getIntervalTo().getSystemTimePoint());
+                                itemsToSetEffectiveTime.add(propertyNodeInfo);
+                            } else {
+                                throw new RuntimeException("The effective time of property node must in the effective time of it's object node");
+                            }
+                        } else {
+                            propertyEffectiveTime = new SInterval(new STimePoint(propertyNode.getProperty("intervalFrom")), new STimePoint(propertyNode.getProperty("intervalTo")));
+                        }
+                        if (valueEffectiveTimeMap != null) {
+                            SInterval valueEffectiveTime = new SInterval(valueEffectiveTimeMap);
+                            // 检查值节点的有效时间是否满足约束
+                            if (propertyEffectiveTime.contains(valueEffectiveTime)) {
+                                // 值节点的有效时间满足约束
+                                List<Node> valueNodes = ReadingQuery.getValueNodes(propertyNode, operateTime);
+                                if (valueNodes.size() == 1) {
+                                    Map<String, Object> valueNodeInfo = new HashMap<>();
+                                    valueNodeInfo.put("item", valueNodes.get(0));
+                                    valueNodeInfo.put("intervalFrom", valueEffectiveTime.getIntervalFrom().getSystemTimePoint());
+                                    valueNodeInfo.put("intervalTo", valueEffectiveTime.getIntervalTo().getSystemTimePoint());
+                                    itemsToSetEffectiveTime.add(valueNodeInfo);
+                                } else if (valueNodes.size() > 1) {
+                                    throw new RuntimeException("Temporal Graph Database System Error");
+                                }
+                            } else {
+                                throw new RuntimeException("The effective time of value node must in the effective time of it's property node");
+                            }
+                        }
+                    }
+                }
+            } else if (objectInfo.get("object") instanceof Relationship relationship) {
+                // 修改关系的有效时间
+                if (propertyInfo == null && valueEffectiveTimeMap == null) {
+                    // 检查关系的有效时间是否满足约束
+                    SInterval relationshipEffectiveTime = new SInterval((Map<String, Object>) objectInfo.get("effectiveTime"));
+                    Node startNode = relationship.getStartNode();
+                    Node endNode = relationship.getEndNode();
+                    SInterval startNodeEffectiveTime = new SInterval(new STimePoint(startNode.getProperty("intervalFrom")), new STimePoint(startNode.getProperty("intervalTo")));
+                    SInterval endNodeEffectiveTime = new SInterval(new STimePoint(endNode.getProperty("intervalFrom")), new STimePoint(endNode.getProperty("intervalTo")));
+                    if (startNodeEffectiveTime.contains(relationshipEffectiveTime) && endNodeEffectiveTime.contains(relationshipEffectiveTime)) {
+                        // 关系的有效时间满足约束
+                        Map<String, Object> relationshipInfo = new HashMap<>();
+                        relationshipInfo.put("item", relationship);
+                        relationshipInfo.put("intervalFrom", relationshipEffectiveTime.getIntervalFrom().getSystemTimePoint());
+                        relationshipInfo.put("intervalTo", relationshipEffectiveTime.getIntervalTo().getSystemTimePoint());
+                        itemsToSetEffectiveTime.add(relationshipInfo);
+                    } else {
+                        throw new RuntimeException("The effective time of relationship must in the effective time of it's start node and end node at the same time");
+                    }
+                } else {
+                    throw new RuntimeException("The properties of relationship don't have effective time");
+                }
+            } else {
+                throw new RuntimeException("Type mismatch: expected Node or Relationship but was " + objectInfo.get("object").getClass().getSimpleName());
+            }
             return itemsToSetEffectiveTime;
         } else {
             throw new RuntimeException("Missing parameter");
