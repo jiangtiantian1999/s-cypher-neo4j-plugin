@@ -133,13 +133,13 @@ public class TimeWindowLimit {
     }
 
     /**
-     * @return 返回默认操作时间，若用snapshot设置过，则返回snapshot设置的时间点；若没有，则返回now()
+     * @return 返回默认操作时间，若用snapshot设置过，则返回snapshot设置的时间点；若没有，则返回timePoint.current()
      */
     @UserFunction("scypher.operateTime")
     @Description("Get the default operate time.")
     public Object operateTime() {
         if (GlobalVariablesManager.getSnapshotTimePoint() == null) {
-            // 没有设置过默认操作时间，返回now()
+            // 没有设置过默认操作时间，返回timePoint.current()
             String timePointType = GlobalVariablesManager.getTimePointType();
             String timezone = GlobalVariablesManager.getTimezone();
             return (new STimePoint(timePointType, timezone)).getSystemTimePoint();

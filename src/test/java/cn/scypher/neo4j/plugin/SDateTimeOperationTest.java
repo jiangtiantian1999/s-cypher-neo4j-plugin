@@ -32,16 +32,16 @@ public class SDateTimeOperationTest {
     }
 
     @Test
-    public void testNow() {
-        System.out.println("testNow");
-        Record record = this.session.run("RETURN scypher.now()").single();
+    public void testTimePoint() {
+        System.out.println("testTimePoint");
+        Record record = this.session.run("RETURN scypher.timePoint('2010')").single();
         System.out.println(record);
     }
 
     @Test
-    public void testTimePoint() {
-        System.out.println("testTimePoint");
-        Record record = this.session.run("RETURN scypher.timePoint('2010')").single();
+    public void testNow() {
+        System.out.println("testTimePointCurrent");
+        Record record = this.session.run("RETURN scypher.timePoint.current()").single();
         System.out.println(record);
     }
 

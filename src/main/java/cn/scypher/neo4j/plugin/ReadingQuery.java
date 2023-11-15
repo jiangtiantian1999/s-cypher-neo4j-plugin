@@ -52,6 +52,7 @@ public class ReadingQuery {
             } else if (valueNodeInterval != null && valueNodeEffectiveTime.contains(valueNodeInterval)) {
                 valueNodeList.add(valueNode);
             } else if (scopeInterval != null && valueNodeEffectiveTime.contains(scopeInterval)) {
+                // 时序查询子句和delete子句均优先使用scope定义的有效时间
                 valueNodeList.add(valueNode);
             } else if (snapshotTimePoint != null && valueNodeEffectiveTime.contains(snapshotTimePoint)) {
                 valueNodeList.add(valueNode);

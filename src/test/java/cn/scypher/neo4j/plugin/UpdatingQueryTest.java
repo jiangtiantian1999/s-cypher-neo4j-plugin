@@ -57,4 +57,25 @@ public class UpdatingQueryTest {
             System.out.println(record);
         }
     }
+
+    @Test
+    public void testGetItemsToStale() {
+        System.out.println("testGetItemsToStale");
+        this.session.run("CREATE (n:Person:Object {intervalFrom:scypher.timePoint('2010'), intervalTo:scypher.timePoint('NOW')})-[:OBJECT_PROPERTY]->" +
+                "(p:Property {content:'name', intervalFrom:scypher.timePoint('2010'), intervalTo:scypher.timePoint('NOW')})-[:PROPERTY_VALUE]->" +
+                "(v1:Value {content:'Nick', intervalFrom:scypher.timePoint('2010'), intervalTo:scypher.timePoint('2022')})," +
+                "(p)-[:PROPERTY_VALUE]->(v2:Value {content:'Tom', intervalFrom:scypher.timePoint('2023'), intervalTo:scypher.timePoint('NOW')})");
+        List<Record> records = this.session.run("MATCH (n:Person)-->(p:Property)-->(v:Value)" +
+                "RETURN n.intervalTo, p.intervalTo, v.intervalTo").list();
+        for (Record record : records) {
+            System.out.println(record);
+        }
+        this.session.run("MATCH (n:Person)" +
+                "FOREACH(item in scypher.getItemsToStale(n,'name',true,NULL)| set item.intervalTo = scypher.timePoint.current() )");
+        records = this.session.run("MATCH (n:Person)-->(p:Property)-->(v:Value)" +
+                "RETURN n.intervalTo, p.intervalTo, v.intervalTo").list();
+        for (Record record : records) {
+            System.out.println(record);
+        }
+    }
 }

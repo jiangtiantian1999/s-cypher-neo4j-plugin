@@ -13,18 +13,6 @@ import java.util.Map;
 public class SDateTimeOperation {
 
     /**
-     * @return 返回当前时区和当前时间点类型下的当前时刻的时间点，为时间点类型
-     */
-    @UserFunction("scypher.now")
-    @Description("Get the time point at the current moment.")
-    public Object now() {
-        // 获取用户之前所设置的时间点类型和时区
-        String timePointType = GlobalVariablesManager.getTimePointType();
-        String timezone = GlobalVariablesManager.getTimezone();
-        return (new STimePoint(timePointType, timezone)).getSystemTimePoint();
-    }
-
-    /**
      * @param timePoint 一个时间点，为str类型、Map类型或时间点类型
      * @return 返回当前时区和当前时间点类型下的时间点，为时间点类型
      */
@@ -46,6 +34,18 @@ public class SDateTimeOperation {
         } else {
             throw new RuntimeException("Missing parameter");
         }
+    }
+
+    /**
+     * @return 返回当前时区和当前时间点类型下的当前时刻的时间点，为时间点类型
+     */
+    @UserFunction("scypher.timePoint.current")
+    @Description("Get the time point at the current moment.")
+    public Object current() {
+        // 获取用户之前所设置的时间点类型和时区
+        String timePointType = GlobalVariablesManager.getTimePointType();
+        String timezone = GlobalVariablesManager.getTimezone();
+        return (new STimePoint(timePointType, timezone)).getSystemTimePoint();
     }
 
     /**

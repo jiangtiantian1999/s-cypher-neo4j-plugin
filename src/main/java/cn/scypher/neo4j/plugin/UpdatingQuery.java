@@ -11,7 +11,7 @@ import java.util.List;
 import java.util.Map;
 
 public class UpdatingQuery {
-    
+
     public static List<Node> getPropertyNodes(Node objectNode) {
         List<Node> propertyNodeList = new ArrayList<>();
         ResourceIterable<Relationship> relationships = objectNode.getRelationships(Direction.OUTGOING, RelationshipType.withName("OBJECT_PROPERTY"));
@@ -61,7 +61,7 @@ public class UpdatingQuery {
     /**
      * @param object       对象节点/关系/路径
      * @param propertyName 属性名
-     * @param timeWindow   删除的值节点的范围
+     * @param timeWindow   删除的值节点的范围/[是否仅删除值节点]
      * @return 以列表形式返回所有待物理删除的元素
      */
     @UserFunction("scypher.getItemsToDelete")
@@ -71,10 +71,21 @@ public class UpdatingQuery {
             List<Object> itemsToDelete = new ArrayList<>();
             if (object instanceof Node objectNode) {
                 if (propertyName != null) {
-                    // 删除对象节点的属性
+                    // 物理删除对象节点的属性
                     Node propertyNode = ReadingQuery.getPropertyNode(objectNode, propertyName);
                     if (propertyNode != null) {
-                        List<Node> valueNodes = ReadingQuery.getValueNodes(propertyNode, timeWindow);
+                        List<Node> valueNodes;
+                        if (timeWindow == null) {
+                            // 物理删除属性节点和值节点
+                            valueNodes = getValueNodes(propertyNode);
+                        } else {
+                            // 仅物理删除值节点
+                            if (timeWindow instanceof Boolean) {
+                                valueNodes = ReadingQuery.getValueNodes(propertyNode, null);
+                            } else {
+                                valueNodes = ReadingQuery.getValueNodes(propertyNode, timeWindow);
+                            }
+                        }
                         // 属性节点与其所有值节点之间的边
                         List<Relationship> propertyValueEdges = new ArrayList<>();
                         for (Node valueNode : valueNodes) {
@@ -82,22 +93,22 @@ public class UpdatingQuery {
                         }
                         itemsToDelete.addAll(propertyValueEdges);
                         itemsToDelete.addAll(valueNodes);
-                        if (valueNodes.size() == getValueNodes(propertyNode).size()) {
-                            // 删除了所有值节点时，把属性节点也同时删除
+                        if (timeWindow == null) {
+                            // 物理删除属性节点和值节点
                             itemsToDelete.add(propertyNode.getSingleRelationship(RelationshipType.withName("OBJECT_PROPERTY"), Direction.INCOMING));
                             itemsToDelete.add(propertyNode);
                         }
                     }
                 } else {
-                    // 删除对象节点，并删除其所有属性节点和值节点以及相连边
+                    // 物理删除对象节点，并删除其所有属性节点和值节点以及相连边
                     itemsToDelete.addAll(deleteObjectNode(objectNode));
                     itemsToDelete.add(objectNode);
                 }
             } else if (object instanceof Relationship relationship) {
-                // 删除关系
+                // 物理删除关系
                 itemsToDelete.add(relationship);
             } else if (object instanceof Path path) {
-                // 删除路径，并删除路径上所有对象节点的所有属性节点和值节点以及相连边
+                // 物理删除路径，并删除路径上所有对象节点的所有属性节点和值节点以及相连边
                 for (Node objectNode : path.nodes()) {
                     itemsToDelete.addAll(deleteObjectNode(objectNode));
                 }
@@ -115,15 +126,63 @@ public class UpdatingQuery {
      * @param object          对象节点/关系
      * @param propertyName    属性名
      * @param deleteValueNode 是否仅逻辑删除值节点
-     * @param timeWindow      删除的值节点的范围
+     * @param operateTime     逻辑删除时间
      * @return 以列表形式返回所有待逻辑删除的元素
      */
     @UserFunction("scypher.getItemsToStale")
     @Description("Get the items to stale.")
-    public List<Object> getItemsToStale(@Name("object") Object object, @Name("propertyName") String propertyName, @Name("deleteValueNode") boolean deleteValueNode, @Name("timeWindow") Object timeWindow) {
+    public List<Object> getItemsToStale(@Name("object") Object object, @Name("propertyName") String propertyName, @Name("deleteValueNode") boolean deleteValueNode, @Name("operateTime") Object operateTime) {
         if (object != null) {
             List<Object> itemsToStale = new ArrayList<>();
-            //TODO
+            if (object instanceof Node objectNode) {
+                String timePointType = GlobalVariablesManager.getTimePointType();
+                String timezone = GlobalVariablesManager.getTimezone();
+                STimePoint NOW = new STimePoint("NOW", timePointType, timezone);
+                if (propertyName != null) {
+                    // 逻辑删除对象节点的属性
+                    Node propertyNode = ReadingQuery.getPropertyNode(objectNode, propertyName);
+                    if (propertyNode != null && propertyNode.getProperty("intervalTo").equals(NOW.getSystemTimePoint())) {
+                        List<Node> valueNodes;
+                        if (!deleteValueNode) {
+                            // 逻辑删除属性节点和值节点
+                            valueNodes = getValueNodes(propertyNode);
+                            itemsToStale.add(propertyNode);
+                        } else {
+                            // 仅逻辑删除值节点
+                            valueNodes = ReadingQuery.getValueNodes(propertyNode, operateTime);
+                        }
+                        for (Node valueNode : valueNodes) {
+                            if (valueNode.getProperty("intervalTo").equals(NOW.getSystemTimePoint())) {
+                                itemsToStale.add(valueNode);
+                                break;
+                            }
+                        }
+                    }
+                } else {
+                    // 逻辑删除对象节点，并逻辑删除其所有属性节点和值节点
+                    if (objectNode.getProperty("intervalTo").equals(NOW.getSystemTimePoint())) {
+                        itemsToStale.add(objectNode);
+                        List<Node> propertyNodes = getPropertyNodes(objectNode);
+                        for (Node propertyNode : propertyNodes) {
+                            if (propertyNode.getProperty("intervalTo").equals(NOW.getSystemTimePoint())) {
+                                itemsToStale.add(propertyNode);
+                                List<Node> valueNodes = getValueNodes(propertyNode);
+                                for (Node valueNode : valueNodes) {
+                                    if (valueNode.getProperty("intervalTo").equals(NOW.getSystemTimePoint())) {
+                                        itemsToStale.add(valueNode);
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            } else if (object instanceof Relationship relationship) {
+                // 逻辑删除关系
+                itemsToStale.add(relationship);
+            } else {
+                throw new RuntimeException("Type mismatch: expected Node or Relationship but was " + object.getClass().getSimpleName());
+            }
             return itemsToStale;
         } else {
             throw new RuntimeException("Missing parameter");
