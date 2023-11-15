@@ -14,7 +14,7 @@ import java.util.Map;
 
 public class ReadingQuery {
 
-    public Node getPropertyNode(Node objectNode, String propertyName) {
+    public static Node getPropertyNode(Node objectNode, String propertyName) {
         ResourceIterable<Relationship> relationships = objectNode.getRelationships(Direction.OUTGOING, RelationshipType.withName("OBJECT_PROPERTY"));
         for (Relationship relationship : relationships) {
             Node endNode = relationship.getEndNode();
@@ -25,7 +25,7 @@ public class ReadingQuery {
         return null;
     }
 
-    public List<Node> getValueNodes(Node propertyNode, @Name("timeWindow") Object timeWindow) {
+    public static List<Node> getValueNodes(Node propertyNode, @Name("timeWindow") Object timeWindow) {
         ResourceIterable<Relationship> relationships = propertyNode.getRelationships(Direction.OUTGOING, RelationshipType.withName("PROPERTY_VALUE"));
         List<Node> valueNodeList = new ArrayList<>();
         // snapshot/scope语句指定的时间区间

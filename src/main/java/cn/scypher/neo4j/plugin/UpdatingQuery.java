@@ -1,7 +1,7 @@
 package cn.scypher.neo4j.plugin;
 
 import cn.scypher.neo4j.plugin.datetime.STimePoint;
-import org.neo4j.graphdb.Node;
+import org.neo4j.graphdb.*;
 import org.neo4j.procedure.Description;
 import org.neo4j.procedure.Name;
 import org.neo4j.procedure.UserFunction;
@@ -11,8 +11,55 @@ import java.util.List;
 import java.util.Map;
 
 public class UpdatingQuery {
+    
+    public static List<Node> getPropertyNodes(Node objectNode) {
+        List<Node> propertyNodeList = new ArrayList<>();
+        ResourceIterable<Relationship> relationships = objectNode.getRelationships(Direction.OUTGOING, RelationshipType.withName("OBJECT_PROPERTY"));
+        for (Relationship relationship : relationships) {
+            propertyNodeList.add(relationship.getEndNode());
+        }
+        return propertyNodeList;
+    }
+
+    public static List<Node> getValueNodes(Node propertyNode) {
+        List<Node> valueNodeList = new ArrayList<>();
+        ResourceIterable<Relationship> relationships = propertyNode.getRelationships(Direction.OUTGOING, RelationshipType.withName("PROPERTY_VALUE"));
+        for (Relationship relationship : relationships) {
+            valueNodeList.add(relationship.getEndNode());
+        }
+        return valueNodeList;
+    }
+
     /**
-     * @param object       对象节点/路径/关系
+     * @param objectNode 对象节点
+     * @return 返回对象节点的所有属性节点和值节点以及相连边
+     */
+    public static List<Object> deleteObjectNode(Node objectNode) {
+        // 对象节点的所有属性节点
+        List<Node> propertyNodes = getPropertyNodes(objectNode);
+        // 对象节点与其所有属性节点之间的边
+        List<Relationship> objectPropertyEdges = new ArrayList<>();
+        // 对象节点的所有值节点
+        List<Node> valueNodes = new ArrayList<>();
+        // 属性节点与其所有值节点之间的边
+        List<Relationship> propertyValueEdges = new ArrayList<>();
+        for (Node propertyNode : propertyNodes) {
+            objectPropertyEdges.add(propertyNode.getSingleRelationship(RelationshipType.withName("OBJECT_PROPERTY"), Direction.INCOMING));
+            valueNodes.addAll(getValueNodes(propertyNode));
+        }
+        for (Node valueNode : valueNodes) {
+            propertyValueEdges.add(valueNode.getSingleRelationship(RelationshipType.withName("PROPERTY_VALUE"), Direction.INCOMING));
+        }
+        List<Object> itemsToDelete = new ArrayList<>();
+        itemsToDelete.addAll(propertyValueEdges);
+        itemsToDelete.addAll(valueNodes);
+        itemsToDelete.addAll(objectPropertyEdges);
+        itemsToDelete.addAll(propertyNodes);
+        return itemsToDelete;
+    }
+
+    /**
+     * @param object       对象节点/关系/路径
      * @param propertyName 属性名
      * @param timeWindow   删除的值节点的范围
      * @return 以列表形式返回所有待物理删除的元素
@@ -22,7 +69,42 @@ public class UpdatingQuery {
     public List<Object> getItemsToDelete(@Name("object") Object object, @Name("propertyName") String propertyName, @Name("timeWindow") Object timeWindow) {
         if (object != null) {
             List<Object> itemsToDelete = new ArrayList<>();
-            //TODO
+            if (object instanceof Node objectNode) {
+                if (propertyName != null) {
+                    // 删除对象节点的属性
+                    Node propertyNode = ReadingQuery.getPropertyNode(objectNode, propertyName);
+                    if (propertyNode != null) {
+                        List<Node> valueNodes = ReadingQuery.getValueNodes(propertyNode, timeWindow);
+                        // 属性节点与其所有值节点之间的边
+                        List<Relationship> propertyValueEdges = new ArrayList<>();
+                        for (Node valueNode : valueNodes) {
+                            propertyValueEdges.add(valueNode.getSingleRelationship(RelationshipType.withName("PROPERTY_VALUE"), Direction.INCOMING));
+                        }
+                        itemsToDelete.addAll(propertyValueEdges);
+                        itemsToDelete.addAll(valueNodes);
+                        if (valueNodes.size() == getValueNodes(propertyNode).size()) {
+                            // 删除了所有值节点时，把属性节点也同时删除
+                            itemsToDelete.add(propertyNode.getSingleRelationship(RelationshipType.withName("OBJECT_PROPERTY"), Direction.INCOMING));
+                            itemsToDelete.add(propertyNode);
+                        }
+                    }
+                } else {
+                    // 删除对象节点，并删除其所有属性节点和值节点以及相连边
+                    itemsToDelete.addAll(deleteObjectNode(objectNode));
+                    itemsToDelete.add(objectNode);
+                }
+            } else if (object instanceof Relationship relationship) {
+                // 删除关系
+                itemsToDelete.add(relationship);
+            } else if (object instanceof Path path) {
+                // 删除路径，并删除路径上所有对象节点的所有属性节点和值节点以及相连边
+                for (Node objectNode : path.nodes()) {
+                    itemsToDelete.addAll(deleteObjectNode(objectNode));
+                }
+                itemsToDelete.add(path);
+            } else {
+                throw new RuntimeException("Type mismatch: expected Node, Relationship or Path but was " + object.getClass().getSimpleName());
+            }
             return itemsToDelete;
         } else {
             throw new RuntimeException("Missing parameter");
@@ -145,8 +227,8 @@ public class UpdatingQuery {
      * @param relationshipIntervalTo 待设置的关系的结束时间
      * @return 如果关系的结束时间满足约束，则返回relationshipIntervalTo；反之，则报错。
      */
-    @UserFunction("scypher.getIntervalFromOfRelationship")
-    @Description("Get the start time of relationship.")
+    @UserFunction("scypher.getIntervalToOfRelationship")
+    @Description("Get the end time of relationship.")
     public Object getIntervalToOfRelationship(@Name("startNode") Node startNode, @Name("endNode") Node endNode, @Name("relationshipIntervalTo") Object relationshipIntervalTo) {
         if (startNode != null && endNode != null && relationshipIntervalTo != null) {
             STimePoint intervalTo = new STimePoint(relationshipIntervalTo);
