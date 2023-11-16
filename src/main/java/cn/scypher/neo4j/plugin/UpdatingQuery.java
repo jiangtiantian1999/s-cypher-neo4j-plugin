@@ -2,9 +2,7 @@ package cn.scypher.neo4j.plugin;
 
 import cn.scypher.neo4j.plugin.datetime.SInterval;
 import cn.scypher.neo4j.plugin.datetime.STimePoint;
-import org.neo4j.cypher.internal.expressions.functions.Sin;
 import org.neo4j.graphdb.*;
-import org.neo4j.procedure.Context;
 import org.neo4j.procedure.Description;
 import org.neo4j.procedure.Name;
 import org.neo4j.procedure.UserFunction;
@@ -207,7 +205,7 @@ public class UpdatingQuery {
             List<Map<String, Object>> itemsToSetEffectiveTime = new ArrayList<>();
             // 修改对象节点/属性节点/值节点的有效时间
             if (objectInfo.get("object") instanceof Node objectNode) {
-                SInterval objectEffectiveTime = null;
+                SInterval objectEffectiveTime;
                 if (objectInfo.containsKey("effectiveTime")) {
                     objectEffectiveTime = new SInterval((Map<String, Object>) objectInfo.get("effectiveTime"));
                     // 检查对象节点的有效时间是否满足约束
