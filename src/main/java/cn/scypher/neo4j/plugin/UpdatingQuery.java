@@ -513,22 +513,19 @@ public class UpdatingQuery {
     }
 
     /**
-     * @param superiorNode            所属对象节点/属性节点
+     * @param superiorIntervalFrom    所属对象节点/属性节点的开始时间
      * @param subordinateIntervalFrom 待设置的属性节点/值节点的开始时间
      * @return 如果属性节点/值节点的开始时间满足约束，则返回subordinateIntervalFrom；反之，则报错。
      */
     @UserFunction("scypher.getIntervalFromOfSubordinateNode")
     @Description("Get the start time of property node or value node.")
-    public Object getIntervalFromOfSubordinateNode(@Name("superiorNode") Node
-                                                           superiorNode, @Name("subordinateIntervalFrom") Object subordinateIntervalFrom) {
-        if (superiorNode != null && subordinateIntervalFrom != null) {
-            STimePoint intervalFrom = new STimePoint(subordinateIntervalFrom);
-            SInterval superiorNodeInterval = new SInterval(new STimePoint(superiorNode.getProperty("intervalFrom")), new STimePoint(superiorNode.getProperty("intervalTo")));
+    public Object getIntervalFromOfSubordinateNode(@Name("superiorIntervalFrom") Object superiorIntervalFrom, @Name("subordinateIntervalFrom") Object subordinateIntervalFrom) {
+        if (superiorIntervalFrom != null && subordinateIntervalFrom != null) {
             // 检查subordinateIntervalFrom的合法性
-            if (superiorNodeInterval.contains(intervalFrom)) {
-                return subordinateIntervalFrom;
-            } else {
+            if ((new STimePoint(superiorIntervalFrom)).isAfter(new STimePoint(subordinateIntervalFrom))) {
                 throw new RuntimeException("The effective time of subordinate node must in the effective time of it's superior node");
+            } else {
+                return subordinateIntervalFrom;
             }
         } else {
             throw new RuntimeException("Missing parameter");
@@ -536,22 +533,19 @@ public class UpdatingQuery {
     }
 
     /**
-     * @param superiorNode          所属对象节点/属性节点
+     * @param superiorIntervalTo    所属对象节点/属性节点的结束时间
      * @param subordinateIntervalTo 待设置的属性节点/值节点的结束时间
      * @return 如果属性节点/值节点的结束时间满足约束，则返回subordinateIntervalTo；反之，则报错。
      */
     @UserFunction("scypher.getIntervalToOfSubordinateNode")
     @Description("Get the end time of property node or value node.")
-    public Object getIntervalToOfSubordinateNode(@Name("superiorNode") Node
-                                                         superiorNode, @Name("subordinateIntervalTo") Object subordinateIntervalTo) {
-        if (superiorNode != null && subordinateIntervalTo != null) {
-            STimePoint intervalTo = new STimePoint(subordinateIntervalTo);
-            SInterval superiorNodeInterval = new SInterval(new STimePoint(superiorNode.getProperty("intervalFrom")), new STimePoint(superiorNode.getProperty("intervalTo")));
+    public Object getIntervalToOfSubordinateNode(@Name("superiorIntervalTo") Object superiorIntervalTo, @Name("subordinateIntervalTo") Object subordinateIntervalTo) {
+        if (superiorIntervalTo != null && subordinateIntervalTo != null) {
             // 检查subordinateIntervalTo的合法性
-            if (superiorNodeInterval.contains(intervalTo)) {
-                return subordinateIntervalTo;
-            } else {
+            if ((new STimePoint(superiorIntervalTo)).isBefore(new STimePoint(subordinateIntervalTo))) {
                 throw new RuntimeException("The effective time of subordinate node must in the effective time of it's superior node");
+            } else {
+                return subordinateIntervalTo;
             }
         } else {
             throw new RuntimeException("Missing parameter");
@@ -559,24 +553,20 @@ public class UpdatingQuery {
     }
 
     /**
-     * @param startNode                开始节点
-     * @param endNode                  结束节点
+     * @param startIntervalFrom        开始节点的开始时间
+     * @param endIntervalFrom          结束节点的开始时间
      * @param relationshipIntervalFrom 待设置的关系的开始时间
      * @return 如果关系的开始时间满足约束，则返回relationshipIntervalFrom；反之，则报错。
      */
     @UserFunction("scypher.getIntervalFromOfRelationship")
     @Description("Get the start time of relationship.")
-    public Object getIntervalFromOfRelationship(@Name("startNode") Node startNode, @Name("endNode") Node
-            endNode, @Name("relationshipIntervalFrom") Object relationshipIntervalFrom) {
-        if (startNode != null && endNode != null && relationshipIntervalFrom != null) {
-            STimePoint intervalFrom = new STimePoint(relationshipIntervalFrom);
-            SInterval startNodeInterval = new SInterval(new STimePoint(startNode.getProperty("intervalFrom")), new STimePoint(startNode.getProperty("intervalTo")));
-            SInterval endNodeInterval = new SInterval(new STimePoint(endNode.getProperty("intervalFrom")), new STimePoint(endNode.getProperty("intervalTo")));
+    public Object getIntervalFromOfRelationship(@Name("startIntervalFrom") Object startIntervalFrom, @Name("endIntervalFrom") Object endIntervalFrom, @Name("relationshipIntervalFrom") Object relationshipIntervalFrom) {
+        if (startIntervalFrom != null && endIntervalFrom != null && relationshipIntervalFrom != null) {
             // 检查relationshipIntervalFrom的合法性
-            if (startNodeInterval.contains(intervalFrom) && endNodeInterval.contains(intervalFrom)) {
-                return relationshipIntervalFrom;
-            } else {
+            if ((new STimePoint(startIntervalFrom)).isAfter(new STimePoint(relationshipIntervalFrom)) | (new STimePoint(endIntervalFrom)).isAfter(new STimePoint(relationshipIntervalFrom))) {
                 throw new RuntimeException("The effective time of relationship must in the effective time of it's start node and end node at the same time");
+            } else {
+                return relationshipIntervalFrom;
             }
         } else {
             throw new RuntimeException("Missing parameter");
@@ -584,24 +574,20 @@ public class UpdatingQuery {
     }
 
     /**
-     * @param startNode              开始节点
-     * @param endNode                结束节点
+     * @param startIntervalTo        开始节点的结束时间时间
+     * @param endIntervalTo          结束节点的结束时间
      * @param relationshipIntervalTo 待设置的关系的结束时间
      * @return 如果关系的结束时间满足约束，则返回relationshipIntervalTo；反之，则报错。
      */
     @UserFunction("scypher.getIntervalToOfRelationship")
     @Description("Get the end time of relationship.")
-    public Object getIntervalToOfRelationship(@Name("startNode") Node startNode, @Name("endNode") Node
-            endNode, @Name("relationshipIntervalTo") Object relationshipIntervalTo) {
-        if (startNode != null && endNode != null && relationshipIntervalTo != null) {
-            STimePoint intervalTo = new STimePoint(relationshipIntervalTo);
-            SInterval startNodeInterval = new SInterval(new STimePoint(startNode.getProperty("intervalFrom")), new STimePoint(startNode.getProperty("intervalTo")));
-            SInterval endNodeInterval = new SInterval(new STimePoint(endNode.getProperty("intervalFrom")), new STimePoint(endNode.getProperty("intervalTo")));
+    public Object getIntervalToOfRelationship(@Name("startIntervalTo") Object startIntervalTo, @Name("endIntervalTo") Object endIntervalTo, @Name("relationshipIntervalTo") Object relationshipIntervalTo) {
+        if (startIntervalTo != null && endIntervalTo != null && relationshipIntervalTo != null) {
             // 检查relationshipIntervalTo的合法性
-            if (startNodeInterval.contains(intervalTo) && endNodeInterval.contains(intervalTo)) {
-                return relationshipIntervalTo;
-            } else {
+            if ((new STimePoint(startIntervalTo)).isBefore(new STimePoint(relationshipIntervalTo)) | (new STimePoint(endIntervalTo)).isBefore(new STimePoint(relationshipIntervalTo))) {
                 throw new RuntimeException("The effective time of relationship must in the effective time of it's start node and end node at the same time");
+            } else {
+                return relationshipIntervalTo;
             }
         } else {
             throw new RuntimeException("Missing parameter");
