@@ -2,7 +2,9 @@ package cn.scypher.neo4j.plugin;
 
 import cn.scypher.neo4j.plugin.datetime.SInterval;
 import cn.scypher.neo4j.plugin.datetime.STimePoint;
+import org.neo4j.cypher.internal.expressions.functions.Sin;
 import org.neo4j.graphdb.*;
+import org.neo4j.procedure.Context;
 import org.neo4j.procedure.Description;
 import org.neo4j.procedure.Name;
 import org.neo4j.procedure.UserFunction;
@@ -299,21 +301,212 @@ public class UpdatingQuery {
         }
     }
 
+
+    public Map<String, Object> getItemToSetExpression(Node objectNode, SInterval objectEffectiveTime, boolean isSetPropertyExpression, String propertyName, Object operateTime, SInterval effectiveTime, Object propertyValue) {
+        Map<String, Object> itemToSetExpression = new HashMap<>();
+        Node propertyNode = ReadingQuery.getPropertyNode(objectNode, propertyName);
+        if (propertyNode == null) {
+            // 没有属性节点，创建属性节点和值节点，不用考虑propertyValue==null的情况
+            if (propertyValue != null) {
+                // 检查属性节点的有效时间是否符合约束
+                if (objectEffectiveTime.contains(effectiveTime)) {
+                    // 满足约束，返回属性节点所连接的对象节点
+                    if (isSetPropertyExpression) {
+                        itemToSetExpression.put("createPropertyNode", objectNode);
+                    } else {
+                        Map<String, Object> createPropertyNode = new HashMap<>();
+                        createPropertyNode.put("propertyName", propertyName);
+                        createPropertyNode.put("propertyValue", propertyValue);
+                        itemToSetExpression.put("createPropertyNodes", createPropertyNode);
+                    }
+                } else {
+                    throw new RuntimeException("The effective time of object node must contain the effective time of it's property nodes. Please alter the effective time of object node");
+                }
+            }
+        } else {
+            // 有属性节点，仅创建/修改值节点
+            SInterval propertyEffectiveTime = new SInterval(new STimePoint(propertyNode.getProperty("intervalFrom")), new STimePoint(propertyNode.getProperty("intervalTo")));
+            List<Node> valueNodes = ReadingQuery.getValueNodes(propertyNode, operateTime);
+            if (valueNodes.size() == 0) {
+                // 创建值节点
+                if (propertyValue != null) {
+                    // 检查值节点的有效时间是否符合约束
+                    if (propertyEffectiveTime.contains(effectiveTime)) {
+                        // 满足约束，返回值节点所连接的属性节点
+                        if (isSetPropertyExpression) {
+                            itemToSetExpression.put("createValueNode", propertyNode);
+                        } else {
+                            Map<String, Object> createValueNode = new HashMap<>();
+                            createValueNode.put("propertyName", propertyName);
+                            createValueNode.put("propertyValue", propertyValue);
+                            itemToSetExpression.put("createValueNodes", createValueNode);
+                        }
+                    } else {
+                        throw new RuntimeException("The effective time of property node must contain the effective time of it's value nodes. Please alter the effective time of property node");
+                    }
+                }
+            } else if (valueNodes.size() == 1) {
+                // 修改值节点
+                Node valueNode = valueNodes.get(0);
+                if (propertyValue != null) {
+                    Map<String, Object> setItem = new HashMap<>();
+                    setItem.put("item", valueNode);
+                    setItem.put("content", propertyValue);
+                    itemToSetExpression.put("setValueNodes", setItem);
+                } else {
+                    // 删除值节点
+                    List<Object> deleteItems = new ArrayList<>();
+                    deleteItems.add(valueNode.getSingleRelationship(RelationshipType.withName("PROPERTY_VALUE"), Direction.INCOMING));
+                    deleteItems.add(valueNode);
+                    itemToSetExpression.put("deleteItems", deleteItems);
+                }
+            } else {
+                throw new RuntimeException("The effective time overlaps multiple effective time of value nodes. Please alter the effective time");
+            }
+        }
+        return itemToSetExpression;
+    }
+
     /**
      * @param object        对象节点/关系
      * @param propertyName  属性名
-     * @param operateTime   set的操作时间，修改在该时刻有效的值节点，或添加开始时间为该时刻的值节点
-     * @param isAdd         是否为+=，默认=
+     * @param operateTime   set的操作时间，修改在该时刻/时间区间有效的值节点，或添加开始时间/有效时间为该时刻/时间区间的值节点
+     * @param isAdd         是否+=，默认=
      * @param propertyValue 要赋予的属性值
-     * @return 修改节点/关系的属性
+     * @return 修改/添加/删除节点/关系的属性
      */
     @UserFunction("scypher.getItemsToSetExpression")
     @Description("Get the items to set their property.")
-    public List<Map<String, Object>> getItemsToSetExpression(@Name("object") Object object, @Name("propertyName") String propertyName, @Name("operateTime") Object operateTime, @Name("isAdd") boolean isAdd, @Name("propertyValue") Object propertyValue) {
+    public List<Map<String, List>> getItemsToSetExpression(@Name("object") Object object, @Name("propertyName") String propertyName, @Name("operateTime") Object operateTime,
+                                                           @Name("isAdd") boolean isAdd, @Name("propertyValue") Object propertyValue) {
         if (object != null) {
-            List<Map<String, Object>> itemsToSetExpression = new ArrayList<>();
-            //TODO
-            return itemsToSetExpression;
+            Map<String, List> itemsToSetExpression = new HashMap<>();
+
+            if (object instanceof Node objectNode) {
+                // 设置节点的属性
+                SInterval objectEffectiveTime = new SInterval(new STimePoint(objectNode.getProperty("intervalFrom")), new STimePoint(objectNode.getProperty("intervalTo")));
+                // 属性节点和值节点的默认有效时间
+                SInterval effectiveTime;
+                if (operateTime instanceof Map) {
+                    effectiveTime = new SInterval((Map<String, Object>) operateTime);
+                } else {
+                    String timePointType = GlobalVariablesManager.getTimePointType();
+                    String timezone = GlobalVariablesManager.getTimezone();
+                    STimePoint NOW = new STimePoint("NOW", timePointType, timezone);
+                    effectiveTime = new SInterval(new STimePoint(operateTime), NOW);
+                }
+                if (propertyName != null) {
+                    // 设置单个属性
+                    Map<String, Object> getItemToSetExpression = getItemToSetExpression(objectNode, objectEffectiveTime, true, propertyName, operateTime, effectiveTime, propertyValue);
+                    if (getItemToSetExpression.containsKey("createPropertyNode")) {
+                        List<Node> objectNodeList = new ArrayList<>();
+                        objectNodeList.add((Node) getItemToSetExpression.get("createPropertyNode"));
+                        itemsToSetExpression.put("createPropertyNode", objectNodeList);
+                    }
+                    if (getItemToSetExpression.containsKey("createValueNode")) {
+                        List<Node> propertyNodeList = new ArrayList<>();
+                        propertyNodeList.add((Node) getItemToSetExpression.get("createValueNode"));
+                        itemsToSetExpression.put("createValueNode", propertyNodeList);
+                    }
+                    if (getItemToSetExpression.containsKey("setValueNodes")) {
+                        List<Map<String, Object>> setItemList = new ArrayList<>();
+                        setItemList.add((Map<String, Object>) getItemToSetExpression.get("setValueNodes"));
+                        itemsToSetExpression.put("setValueNodes", setItemList);
+                    }
+                    if (getItemToSetExpression.containsKey("deleteItems")) {
+                        List<Object> deleteItems = (List<Object>) getItemToSetExpression.get("deleteItems");
+                        itemsToSetExpression.put("deleteItems", deleteItems);
+                    }
+                } else {
+                    //设置一组属性
+                    if (propertyValue instanceof Map) {
+                        Map<String, Object> nodeProperties = (Map<String, Object>) propertyValue;
+                        List<Object> deleteItems = new ArrayList<>();
+                        if (!isAdd) {
+                            // 需要删除原来的所有属性节点和值节点以及相连边
+                            List<Node> propertyNodes = getPropertyNodes(objectNode);
+                            for (Node propertyNode : propertyNodes) {
+                                List<Node> valueNodes = getValueNodes(propertyNode);
+                                for (Node valueNode : valueNodes) {
+                                    deleteItems.add(valueNode.getSingleRelationship(RelationshipType.withName("PROPERTY_VALUE"), Direction.INCOMING));
+                                    deleteItems.add(valueNode);
+                                }
+                                deleteItems.add(propertyNode.getSingleRelationship(RelationshipType.withName("OBJECT_PROPERTY"), Direction.INCOMING));
+                                deleteItems.add(propertyNode);
+                            }
+                            itemsToSetExpression.put("deleteItems", deleteItems);
+                            List<Map<String, Object>> PropertyInfoList = new ArrayList<>();
+                            for (Map.Entry<String, Object> entry : nodeProperties.entrySet()) {
+                                Map<String, Object> createPropertyNode = new HashMap<>();
+                                createPropertyNode.put("propertyName", entry.getKey());
+                                createPropertyNode.put("propertyValue", entry.getValue());
+                                PropertyInfoList.add(createPropertyNode);
+                            }
+                            itemsToSetExpression.put("createPropertyNodes", PropertyInfoList);
+                        } else {
+                            List<Map<String, Object>> PropertyInfoList = new ArrayList<>();
+                            List<Map<String, Object>> ValueInfoList = new ArrayList<>();
+                            List<Map<String, Object>> setItemList = new ArrayList<>();
+                            for (Map.Entry<String, Object> entry : nodeProperties.entrySet()) {
+                                Map<String, Object> getItemToSetExpression = getItemToSetExpression(objectNode, objectEffectiveTime, false, entry.getKey(), operateTime, effectiveTime, entry.getValue());
+                                if (getItemToSetExpression.containsKey("createPropertyNodes")) {
+                                    PropertyInfoList.add((Map<String, Object>) getItemToSetExpression.get("createPropertyNodes"));
+                                }
+                                if (getItemToSetExpression.containsKey("createValueNodes")) {
+                                    ValueInfoList.add((Map<String, Object>) getItemToSetExpression.get("createValueNodes"));
+                                }
+                                if (getItemToSetExpression.containsKey("setValueNodes")) {
+                                    setItemList.add((Map<String, Object>) getItemToSetExpression.get("setValueNodes"));
+                                }
+                                if (getItemToSetExpression.containsKey("deleteItems"))
+                                    deleteItems.addAll((List<Object>) getItemToSetExpression.get("deleteItems"));
+                            }
+                            if (PropertyInfoList.size() > 0) {
+                                itemsToSetExpression.put("createPropertyNode", PropertyInfoList);
+                            }
+                            if (ValueInfoList.size() > 0) {
+                                itemsToSetExpression.put("createValueNode", ValueInfoList);
+                            }
+                            if (setItemList.size() > 0) {
+                                itemsToSetExpression.put("setValueNodes", setItemList);
+                            }
+                            if (deleteItems.size() > 0) {
+                                itemsToSetExpression.put("deleteItems", deleteItems);
+                            }
+                        }
+                    } else {
+                        throw new RuntimeException("Type mismatch: expected Map but was " + propertyValue.getClass().getSimpleName());
+                    }
+                }
+            } else if (object instanceof Relationship relationship) {
+                // 设置关系的属性
+                if (propertyName != null) {
+                    // 设置单个属性
+                    List<Relationship> relationshipList = new ArrayList<>();
+                    relationshipList.add(relationship);
+                    itemsToSetExpression.put("setRelationshipProperty", relationshipList);
+                } else {
+                    // 设置一组属性
+                    if (propertyValue instanceof Map) {
+                        Map<String, Object> properties = (Map<String, Object>) propertyValue;
+                        List<Map<String, Object>> relationshipPropertyList = new ArrayList<>();
+                        if (!isAdd) {
+                            properties.put("intervalFrom", relationship.getProperty("intervalFrom"));
+                            properties.put("intervalTo", relationship.getProperty("intervalTo"));
+                        }
+                        relationshipPropertyList.add(properties);
+                        itemsToSetExpression.put("setRelationshipProperties", relationshipPropertyList);
+                    } else {
+                        throw new RuntimeException("Type mismatch: expected Map but was " + propertyValue.getClass().getSimpleName());
+                    }
+                }
+
+            } else {
+                throw new RuntimeException("Type mismatch: expected Node or Relationship but was " + object.getClass().getSimpleName());
+            }
+            List<Map<String, List>> itemsToSetExpressionList = new ArrayList<>();
+            itemsToSetExpressionList.add(itemsToSetExpression);
+            return itemsToSetExpressionList;
         } else {
             throw new RuntimeException("Missing parameter");
         }
@@ -326,11 +519,17 @@ public class UpdatingQuery {
      */
     @UserFunction("scypher.getIntervalFromOfSubordinateNode")
     @Description("Get the start time of property node or value node.")
-    public Object getIntervalFromOfSubordinateNode(@Name("superiorNode") Node superiorNode, @Name("subordinateIntervalFrom") Object subordinateIntervalFrom) {
+    public Object getIntervalFromOfSubordinateNode(@Name("superiorNode") Node
+                                                           superiorNode, @Name("subordinateIntervalFrom") Object subordinateIntervalFrom) {
         if (superiorNode != null && subordinateIntervalFrom != null) {
             STimePoint intervalFrom = new STimePoint(subordinateIntervalFrom);
-            //TODO 检查subordinateIntervalFrom的合法性
-            return subordinateIntervalFrom;
+            SInterval superiorNodeInterval = new SInterval(new STimePoint(superiorNode.getProperty("intervalFrom")), new STimePoint(superiorNode.getProperty("intervalTo")));
+            // 检查subordinateIntervalFrom的合法性
+            if (superiorNodeInterval.contains(intervalFrom)) {
+                return subordinateIntervalFrom;
+            } else {
+                throw new RuntimeException("The effective time of subordinate node must in the effective time of it's superior node");
+            }
         } else {
             throw new RuntimeException("Missing parameter");
         }
@@ -343,11 +542,17 @@ public class UpdatingQuery {
      */
     @UserFunction("scypher.getIntervalToOfSubordinateNode")
     @Description("Get the end time of property node or value node.")
-    public Object getIntervalToOfSubordinateNode(@Name("superiorNode") Node superiorNode, @Name("subordinateIntervalTo") Object subordinateIntervalTo) {
+    public Object getIntervalToOfSubordinateNode(@Name("superiorNode") Node
+                                                         superiorNode, @Name("subordinateIntervalTo") Object subordinateIntervalTo) {
         if (superiorNode != null && subordinateIntervalTo != null) {
             STimePoint intervalTo = new STimePoint(subordinateIntervalTo);
-            //TODO 检查subordinateIntervalTo的合法性
-            return subordinateIntervalTo;
+            SInterval superiorNodeInterval = new SInterval(new STimePoint(superiorNode.getProperty("intervalFrom")), new STimePoint(superiorNode.getProperty("intervalTo")));
+            // 检查subordinateIntervalTo的合法性
+            if (superiorNodeInterval.contains(intervalTo)) {
+                return subordinateIntervalTo;
+            } else {
+                throw new RuntimeException("The effective time of subordinate node must in the effective time of it's superior node");
+            }
         } else {
             throw new RuntimeException("Missing parameter");
         }
@@ -361,11 +566,18 @@ public class UpdatingQuery {
      */
     @UserFunction("scypher.getIntervalFromOfRelationship")
     @Description("Get the start time of relationship.")
-    public Object getIntervalFromOfRelationship(@Name("startNode") Node startNode, @Name("endNode") Node endNode, @Name("relationshipIntervalFrom") Object relationshipIntervalFrom) {
+    public Object getIntervalFromOfRelationship(@Name("startNode") Node startNode, @Name("endNode") Node
+            endNode, @Name("relationshipIntervalFrom") Object relationshipIntervalFrom) {
         if (startNode != null && endNode != null && relationshipIntervalFrom != null) {
             STimePoint intervalFrom = new STimePoint(relationshipIntervalFrom);
-            //TODO 检查relationshipIntervalFrom的合法性
-            return relationshipIntervalFrom;
+            SInterval startNodeInterval = new SInterval(new STimePoint(startNode.getProperty("intervalFrom")), new STimePoint(startNode.getProperty("intervalTo")));
+            SInterval endNodeInterval = new SInterval(new STimePoint(endNode.getProperty("intervalFrom")), new STimePoint(endNode.getProperty("intervalTo")));
+            // 检查relationshipIntervalFrom的合法性
+            if (startNodeInterval.contains(intervalFrom) && endNodeInterval.contains(intervalFrom)) {
+                return relationshipIntervalFrom;
+            } else {
+                throw new RuntimeException("The effective time of relationship must in the effective time of it's start node and end node at the same time");
+            }
         } else {
             throw new RuntimeException("Missing parameter");
         }
@@ -379,11 +591,18 @@ public class UpdatingQuery {
      */
     @UserFunction("scypher.getIntervalToOfRelationship")
     @Description("Get the end time of relationship.")
-    public Object getIntervalToOfRelationship(@Name("startNode") Node startNode, @Name("endNode") Node endNode, @Name("relationshipIntervalTo") Object relationshipIntervalTo) {
+    public Object getIntervalToOfRelationship(@Name("startNode") Node startNode, @Name("endNode") Node
+            endNode, @Name("relationshipIntervalTo") Object relationshipIntervalTo) {
         if (startNode != null && endNode != null && relationshipIntervalTo != null) {
             STimePoint intervalTo = new STimePoint(relationshipIntervalTo);
-            //TODO 检查relationshipIntervalTo的合法性
-            return relationshipIntervalTo;
+            SInterval startNodeInterval = new SInterval(new STimePoint(startNode.getProperty("intervalFrom")), new STimePoint(startNode.getProperty("intervalTo")));
+            SInterval endNodeInterval = new SInterval(new STimePoint(endNode.getProperty("intervalFrom")), new STimePoint(endNode.getProperty("intervalTo")));
+            // 检查relationshipIntervalTo的合法性
+            if (startNodeInterval.contains(intervalTo) && endNodeInterval.contains(intervalTo)) {
+                return relationshipIntervalTo;
+            } else {
+                throw new RuntimeException("The effective time of relationship must in the effective time of it's start node and end node at the same time");
+            }
         } else {
             throw new RuntimeException("Missing parameter");
         }

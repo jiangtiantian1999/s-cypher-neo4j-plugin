@@ -101,4 +101,41 @@ public class UpdatingQueryTest {
             System.out.println(record);
         }
     }
+
+    @Test
+    public void testGetItemsToSetExpression() {
+        System.out.println("testGetItemsToSetExpression");
+        this.session.run("CREATE (n:Person:Object {intervalFrom:scypher.timePoint('2010'), intervalTo:scypher.timePoint('NOW')})-[:OBJECT_PROPERTY]->" +
+                "(p:Property {content:'name', intervalFrom:scypher.timePoint('2010'), intervalTo:scypher.timePoint('NOW')})-[:PROPERTY_VALUE]->" +
+                "(v1:Value {content:'Nick', intervalFrom:scypher.timePoint('2010'), intervalTo:scypher.timePoint('2022')})," +
+                "(p)-[:PROPERTY_VALUE]->(v2:Value {content:'Tom', intervalFrom:scypher.timePoint('2023'), intervalTo:scypher.timePoint('NOW')})");
+        List<Record> records = this.session.run("MATCH (n:Person)-->(p:Property)-->(v:Value)" +
+                "RETURN n, p.content, v.content").list();
+        for (Record record : records) {
+            System.out.println(record);
+        }
+
+        this.session.run("MATCH (n:Person)" +
+//                "FOREACH(item in scypher.getItemsToSetExpression(n,'name',scypher.operateTime(),false,'John')" +
+//                "FOREACH(item in scypher.getItemsToSetExpression(n,NULL,scypher.operateTime(),false,{name:'John'})" +
+                "FOREACH(item in scypher.getItemsToSetExpression(n,NULL,scypher.operateTime(),true,{name:'John'})" +
+                "| " +
+                "FOREACH( t in item.deleteItems | DELETE t) " +
+                "FOREACH (t in item.createPropertyNode | CREATE (t)-[:OBJECT_PROPERTY]->(:Property{content:'age',intervalFrom:scypher.operateTime(),intervalTo:scypher.timePoint('NOW')})" +
+                "-[:PROPERTY_VALUE]->(:Value{content:30,intervalFrom:scypher.operateTime(),intervalTo:scypher.timePoint('NOW')}))" +
+                "FOREACH (t in item.createPropertyNodes | CREATE (n)-[:OBJECT_PROPERTY]->(:Property{content:t.propertyName,intervalFrom:scypher.operateTime(),intervalTo:scypher.timePoint('NOW')})" +
+                "-[:PROPERTY_VALUE]->(:Value{content:t.propertyValue,intervalFrom:scypher.operateTime(),intervalTo:scypher.timePoint('NOW')}))" +
+                "FOREACH (t in item.createValueNode | CREATE (t)-[:PROPERTY_VALUE]->(:Value{content:30,intervalFrom:scypher.operateTime(),intervalTo:scypher.timePoint('NOW')}))" +
+                "FOREACH (t in item.createValueNodes | MERGE (n)-[:OBJECT_PROPERTY]->(:Property{content:t.propertyName})" +
+                "-[:PROPERTY_VALUE]->(:Value{content:t.propertyValue,intervalFrom:scypher.operateTime(),intervalTo:scypher.timePoint('NOW')}))" +
+                "FOREACH (t in item.setValueNodes | SET t.item.content = t.content)" +
+                "FOREACH (t in item.setRelationshipProperty | SET t.type = 2 )" +
+                "FOREACH (t in item.setRelationshipProperties | SET n = t)" +
+                ")");
+        records = this.session.run("MATCH (n:Person)-->(p:Property)-->(v:Value)" +
+                "RETURN n, p.content, v.content").list();
+        for (Record record : records) {
+            System.out.println(record);
+        }
+    }
 }
