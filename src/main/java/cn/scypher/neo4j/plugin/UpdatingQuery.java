@@ -2,15 +2,13 @@ package cn.scypher.neo4j.plugin;
 
 import cn.scypher.neo4j.plugin.datetime.SInterval;
 import cn.scypher.neo4j.plugin.datetime.STimePoint;
+import org.neo4j.cypher.internal.expressions.functions.Sin;
 import org.neo4j.graphdb.*;
 import org.neo4j.procedure.Description;
 import org.neo4j.procedure.Name;
 import org.neo4j.procedure.UserFunction;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public class UpdatingQuery {
 
@@ -551,20 +549,35 @@ public class UpdatingQuery {
     }
 
     /**
-     * @param startIntervalFrom        开始节点的开始时间
-     * @param endIntervalFrom          结束节点的开始时间
-     * @param relationshipIntervalFrom 待设置的关系的开始时间
+     * @param startNodeIntervalFromObject    开始节点的开始时间
+     * @param endNodeIntervalFromObject      结束节点的开始时间
+     * @param startNode                      开始节点
+     * @param endNode                        结束节点
+     * @param relationshipType               关系的类型
+     * @param relationshipIntervalFromObject 待设置的关系的开始时间
      * @return 如果关系的开始时间满足约束，则返回relationshipIntervalFrom；反之，则报错。
      */
     @UserFunction("scypher.getIntervalFromOfRelationship")
     @Description("Get the start time of relationship.")
-    public Object getIntervalFromOfRelationship(@Name("startIntervalFrom") Object startIntervalFrom, @Name("endIntervalFrom") Object endIntervalFrom, @Name("relationshipIntervalFrom") Object relationshipIntervalFrom) {
-        if (startIntervalFrom != null && endIntervalFrom != null && relationshipIntervalFrom != null) {
+    public Object getIntervalFromOfRelationship(@Name("startNodeIntervalFrom") Object startNodeIntervalFromObject, @Name("endNodeIntervalFrom") Object endNodeIntervalFromObject, @Name("startNode") Node startNode, @Name("endNode") Node endNode, @Name("relationshipType") String relationshipType, @Name("relationshipIntervalFrom") Object relationshipIntervalFromObject) {
+        if (startNodeIntervalFromObject != null && endNodeIntervalFromObject != null && relationshipType != null && relationshipIntervalFromObject != null) {
+            STimePoint startNodeIntervalFrom = new STimePoint(startNodeIntervalFromObject);
+            STimePoint endNodeIntervalFrom = new STimePoint(endNodeIntervalFromObject);
+            STimePoint relationshipIntervalFrom = new STimePoint(relationshipIntervalFromObject);
             // 检查relationshipIntervalFrom的合法性
-            if ((new STimePoint(startIntervalFrom)).isAfter(new STimePoint(relationshipIntervalFrom)) | (new STimePoint(endIntervalFrom)).isAfter(new STimePoint(relationshipIntervalFrom))) {
-                throw new RuntimeException("The effective time of relationship must in the effective time of it's start node and end node at the same time");
+            if (!startNodeIntervalFrom.isAfter(relationshipIntervalFrom) && !endNodeIntervalFrom.isAfter(relationshipIntervalFrom)) {
+                List<Relationship> relationships = startNode.getRelationships(RelationshipType.withName(relationshipType)).stream().toList();
+                for (Relationship relationship : relationships) {
+                    if (relationship.hasProperty("intervalFrom") && relationship.hasProperty("intervalTo")) {
+                        SInterval relationInterval = new SInterval(new STimePoint(relationship.getProperty("intervalFrom")), new STimePoint(relationship.getProperty("intervalTo")));
+                        if ((relationship.getEndNode().equals(endNode) | relationship.getStartNode().equals(endNode)) && relationInterval.contains(relationshipIntervalFrom)) {
+                            throw new RuntimeException("For relationships with the same content, start node and end node, their effective times do not overlap with each other");
+                        }
+                    }
+                }
+                return relationshipIntervalFromObject;
             } else {
-                return relationshipIntervalFrom;
+                throw new RuntimeException("The effective time of relationship must in the effective time of it's start node and end node at the same time");
             }
         } else {
             throw new RuntimeException("Missing parameter");
@@ -572,20 +585,35 @@ public class UpdatingQuery {
     }
 
     /**
-     * @param startIntervalTo        开始节点的结束时间时间
-     * @param endIntervalTo          结束节点的结束时间
-     * @param relationshipIntervalTo 待设置的关系的结束时间
+     * @param startNodeIntervalToObject    开始节点的结束时间
+     * @param endNodeIntervalToObject      结束节点的结束时间
+     * @param startNode                    开始节点
+     * @param endNode                      结束节点
+     * @param relationshipType             关系的类型
+     * @param relationshipIntervalToObject 待设置的关系的结束时间
      * @return 如果关系的结束时间满足约束，则返回relationshipIntervalTo；反之，则报错。
      */
     @UserFunction("scypher.getIntervalToOfRelationship")
     @Description("Get the end time of relationship.")
-    public Object getIntervalToOfRelationship(@Name("startIntervalTo") Object startIntervalTo, @Name("endIntervalTo") Object endIntervalTo, @Name("relationshipIntervalTo") Object relationshipIntervalTo) {
-        if (startIntervalTo != null && endIntervalTo != null && relationshipIntervalTo != null) {
+    public Object getIntervalToOfRelationship(@Name("startNodeIntervalTo") Object startNodeIntervalToObject, @Name("endNodeIntervalTo") Object endNodeIntervalToObject, @Name("startNode") Node startNode, @Name("endNode") Node endNode, @Name("relationshipType") String relationshipType, @Name("relationshipIntervalTo") Object relationshipIntervalToObject) {
+        if (startNodeIntervalToObject != null && endNodeIntervalToObject != null && relationshipType != null && relationshipIntervalToObject != null) {
+            STimePoint startNodeIntervalTo = new STimePoint(startNodeIntervalToObject);
+            STimePoint endNodeIntervalTo = new STimePoint(endNodeIntervalToObject);
+            STimePoint relationshipIntervalTo = new STimePoint(relationshipIntervalToObject);
             // 检查relationshipIntervalTo的合法性
-            if ((new STimePoint(startIntervalTo)).isBefore(new STimePoint(relationshipIntervalTo)) | (new STimePoint(endIntervalTo)).isBefore(new STimePoint(relationshipIntervalTo))) {
-                throw new RuntimeException("The effective time of relationship must in the effective time of it's start node and end node at the same time");
+            if (!startNodeIntervalTo.isAfter(relationshipIntervalTo) && !endNodeIntervalTo.isAfter(relationshipIntervalTo)) {
+                List<Relationship> relationships = startNode.getRelationships(RelationshipType.withName(relationshipType)).stream().toList();
+                for (Relationship relationship : relationships) {
+                    if (relationship.hasProperty("intervalFrom") && relationship.hasProperty("intervalTo")) {
+                        SInterval relationInterval = new SInterval(new STimePoint(relationship.getProperty("intervalFrom")), new STimePoint(relationship.getProperty("intervalTo")));
+                        if ((relationship.getEndNode().equals(endNode) | relationship.getStartNode().equals(endNode)) && relationInterval.contains(relationshipIntervalTo)) {
+                            throw new RuntimeException("For relationships with the same content, start node and end node, their effective times do not overlap with each other");
+                        }
+                    }
+                }
+                return relationshipIntervalToObject;
             } else {
-                return relationshipIntervalTo;
+                throw new RuntimeException("The effective time of relationship must in the effective time of it's start node and end node at the same time");
             }
         } else {
             throw new RuntimeException("Missing parameter");
