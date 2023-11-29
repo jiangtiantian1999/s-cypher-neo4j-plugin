@@ -51,9 +51,18 @@ public class UpdatingQueryTest {
             System.out.println(record);
         }
         this.session.run("MATCH (n:Person)" +
-                "FOREACH(item in scypher.getItemsToDelete(n,'name',NULL)|delete item)");
-        records = this.session.run("MATCH (n:Person)" +
-                "RETURN scypher.getPropertyValue(n,'name',NULL)").list();
+                "CREATE (n)-[:FRIEND]->(m:Person),(c:City)");
+        this.session.run("MATCH (n:Person),(c:City)" +
+                "FOREACH(item in scypher.getItemsToDelete(n,NULL,NULL)| detach delete item)" +
+                "FOREACH(item in scypher.getItemsToDelete(c,NULL,NULL)| detach delete item)" +
+                "detach DELETE n, c"
+        );
+        records = this.session.run("MATCH (n)" +
+                "RETURN *").list();
+//        this.session.run("MATCH (n:Person)" +
+//                "FOREACH(item in scypher.getItemsToDelete(n,'name',NULL)|delete item)");
+//        records = this.session.run("MATCH (n:Person)" +
+//                "RETURN scypher.getPropertyValue(n,'name',NULL)").list();
         for (Record record : records) {
             System.out.println(record);
         }
