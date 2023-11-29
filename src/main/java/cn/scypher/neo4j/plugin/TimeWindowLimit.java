@@ -11,6 +11,48 @@ import java.util.Map;
 
 public class TimeWindowLimit {
 
+    public boolean limitEffectiveTime(SInterval elementEffectiveTime, Object timeWindow, STimePoint clauseTimePoint, SInterval clauseInterval, STimePoint snapshotTimePoint, SInterval scopeInterval) {
+        // @T指定的时间区间
+        STimePoint elementTimePoint = null;
+        SInterval elementInterval = null;
+        if (timeWindow != null) {
+            if (timeWindow instanceof LocalDate | timeWindow instanceof OffsetTime | timeWindow instanceof LocalTime | timeWindow instanceof ZonedDateTime | timeWindow instanceof LocalDateTime) {
+                elementTimePoint = new STimePoint(timeWindow);
+            } else if (timeWindow instanceof Map) {
+                elementInterval = new SInterval((Map<String, Object>) timeWindow);
+            } else {
+                throw new RuntimeException("Type mismatch: expected Date, Time, LocalTime, LocalDateTime, DateTime or Interval but was " + timeWindow.getClass().getSimpleName());
+            }
+        }
+        if (elementTimePoint != null | elementInterval != null) {
+            // 优先受@T指定的时间区间限制
+            if (elementTimePoint != null && elementEffectiveTime.contains(elementTimePoint)) {
+                return true;
+            } else if (elementInterval != null && elementEffectiveTime.contains(elementInterval)) {
+                return true;
+            }
+            return false;
+        } else if (clauseTimePoint != null | clauseInterval != null) {
+            // 次优先受at time/between子句指定的时间区间限制
+            if (clauseTimePoint != null && elementEffectiveTime.contains(clauseTimePoint)) {
+                return true;
+            } else if (clauseInterval != null && elementEffectiveTime.contains(clauseInterval)) {
+                return true;
+            }
+            return false;
+        } else if (snapshotTimePoint != null | scopeInterval != null) {
+            // 最后受snapshot/scope语句指定的时间区间限制
+            if (scopeInterval != null && elementEffectiveTime.contains(scopeInterval)) {
+                // 时序图查询语法优先受SCOPE限制
+                return true;
+            } else if (snapshotTimePoint != null && elementEffectiveTime.contains(snapshotTimePoint)) {
+                return true;
+            }
+            return false;
+        }
+        return true;
+    }
+
     /**
      * 用户不可用，用于在时态图查询语句中限制节点和关系的有效时间
      *
@@ -43,49 +85,24 @@ public class TimeWindowLimit {
                 if (element.size() >= 1 && element.get(0) instanceof Node) {
                     Node node = (Node) element.get(0);
                     elementEffectiveTime = new SInterval(new STimePoint(node.getProperty("intervalFrom")), new STimePoint(node.getProperty("intervalTo")));
+                    if (!limitEffectiveTime(elementEffectiveTime, element.get(1), clauseTimePoint, clauseInterval, snapshotTimePoint, scopeInterval)) {
+                        return false;
+                    }
                 } else if (element.size() >= 1 && element.get(0) instanceof Relationship) {
                     Relationship relationship = (Relationship) element.get(0);
                     elementEffectiveTime = new SInterval(new STimePoint(relationship.getProperty("intervalFrom")), new STimePoint(relationship.getProperty("intervalTo")));
+                    if (!limitEffectiveTime(elementEffectiveTime, element.get(1), clauseTimePoint, clauseInterval, snapshotTimePoint, scopeInterval)) {
+                        return false;
+                    }
+                } else if (element.size() >= 1 && element.get(0) instanceof List) {
+                    for (Relationship relationship : (List<Relationship>) element.get(0)) {
+                        elementEffectiveTime = new SInterval(new STimePoint(relationship.getProperty("intervalFrom")), new STimePoint(relationship.getProperty("intervalTo")));
+                        if (!limitEffectiveTime(elementEffectiveTime, element.get(1), clauseTimePoint, clauseInterval, snapshotTimePoint, scopeInterval)) {
+                            return false;
+                        }
+                    }
                 } else {
                     throw new RuntimeException("The element to limit must be a node or relationship");
-                }
-                // @T指定的时间区间
-                STimePoint elementTimePoint = null;
-                SInterval elementInterval = null;
-                if (elements.size() >= 2) {
-                    if (element.get(1) instanceof LocalDate | timeWindow instanceof OffsetTime | element.get(1) instanceof LocalTime | element.get(1) instanceof ZonedDateTime | element.get(1) instanceof LocalDateTime) {
-                        elementTimePoint = new STimePoint(element.get(1));
-                    } else if (element.get(1) instanceof Map) {
-                        elementInterval = new SInterval((Map<String, Object>) element.get(1));
-                    } else {
-                        throw new RuntimeException("Type mismatch: expected Date, Time, LocalTime, LocalDateTime, DateTime or Interval but was " + element.get(1).getClass().getSimpleName());
-                    }
-                }
-                if (elementTimePoint != null | elementInterval != null) {
-                    // 优先受@T指定的时间区间限制
-                    if (elementTimePoint != null && elementEffectiveTime.contains(elementTimePoint)) {
-                        continue;
-                    } else if (elementInterval != null && elementEffectiveTime.contains(elementInterval)) {
-                        continue;
-                    }
-                    return false;
-                } else if (clauseTimePoint != null | clauseInterval != null) {
-                    // 次优先受at time/between子句指定的时间区间限制
-                    if (clauseTimePoint != null && elementEffectiveTime.contains(clauseTimePoint)) {
-                        continue;
-                    } else if (clauseInterval != null && elementEffectiveTime.contains(clauseInterval)) {
-                        continue;
-                    }
-                    return false;
-                } else if (snapshotTimePoint != null | scopeInterval != null) {
-                    // 最后受snapshot/scope语句指定的时间区间限制
-                    if (scopeInterval != null && elementEffectiveTime.contains(scopeInterval)) {
-                        // 时序图查询语法优先受SCOPE限制
-                        continue;
-                    } else if (snapshotTimePoint != null && elementEffectiveTime.contains(snapshotTimePoint)) {
-                        continue;
-                    }
-                    return false;
                 }
             }
             return true;
