@@ -2,7 +2,6 @@ package cn.scypher.neo4j.plugin;
 
 import cn.scypher.neo4j.plugin.datetime.SInterval;
 import cn.scypher.neo4j.plugin.datetime.STimePoint;
-import org.neo4j.cypher.internal.expressions.functions.Sin;
 import org.neo4j.graphdb.*;
 import org.neo4j.procedure.Description;
 import org.neo4j.procedure.Name;
@@ -314,7 +313,7 @@ public class UpdatingQuery {
             } else {
                 // 有属性节点，仅创建值节点，可能要修改已有值节点的结束时间
                 SInterval propertyEffectiveTime = new SInterval(new STimePoint(propertyNode.getProperty("intervalFrom")), new STimePoint(propertyNode.getProperty("intervalTo")));
-                if (propertyEffectiveTime.getIntervalTo().getSystemTimePoint().equals(NOW.getSystemTimePoint())){
+                if (propertyEffectiveTime.getIntervalTo().getSystemTimePoint().equals(NOW.getSystemTimePoint())) {
                     // 检查值节点的有效时间是否符合约束
                     if (propertyEffectiveTime.contains(operateTime)) {
                         ResourceIterable<Relationship> relationships = propertyNode.getRelationships(Direction.OUTGOING, RelationshipType.withName("PROPERTY_VALUE"));
@@ -381,7 +380,7 @@ public class UpdatingQuery {
                     } else {
                         throw new RuntimeException("The effective time of property node must contain the effective time of it's value nodes. Please alter the operate time");
                     }
-                }else{
+                } else {
                     throw new RuntimeException("Can't add value nodes for historical property nodes");
                 }
             }
@@ -426,6 +425,11 @@ public class UpdatingQuery {
                         List<Node> setItemList = new ArrayList<>();
                         setItemList.add((Node) getItemToSetExpression.get("staleValueNodes"));
                         itemsToSetExpression.put("setValueNodes", setItemList);
+                    }
+                    if (getItemToSetExpression.containsKey("staleValueNodes")) {
+                        List<Node> staleValueNodes = new ArrayList<>();
+                        staleValueNodes.add((Node) getItemToSetExpression.get("staleValueNodes"));
+                        itemsToSetExpression.put("staleValueNodes", staleValueNodes);
                     }
                     if (getItemToSetExpression.containsKey("deleteItems")) {
                         List<Object> deleteItems = (List<Object>) getItemToSetExpression.get("deleteItems");
@@ -472,8 +476,9 @@ public class UpdatingQuery {
                                 if (getItemToSetExpression.containsKey("staleValueNodes")) {
                                     staleValueNodes.add((Node) getItemToSetExpression.get("staleValueNodes"));
                                 }
-                                if (getItemToSetExpression.containsKey("deleteItems"))
+                                if (getItemToSetExpression.containsKey("deleteItems")) {
                                     deleteItems.addAll((List<Object>) getItemToSetExpression.get("deleteItems"));
+                                }
                             }
                             if (PropertyInfoList.size() > 0) {
                                 itemsToSetExpression.put("createPropertyNodes", PropertyInfoList);
@@ -516,6 +521,7 @@ public class UpdatingQuery {
             }
             List<Map<String, List>> itemsToSetExpressionList = new ArrayList<>();
             itemsToSetExpressionList.add(itemsToSetExpression);
+            System.out.println(itemsToSetExpression);
             return itemsToSetExpressionList;
         } else {
             throw new RuntimeException("Missing parameter");
@@ -578,6 +584,9 @@ public class UpdatingQuery {
             STimePoint startNodeIntervalFrom = new STimePoint(startNodeIntervalFromObject);
             STimePoint endNodeIntervalFrom = new STimePoint(endNodeIntervalFromObject);
             STimePoint relationshipIntervalFrom = new STimePoint(relationshipIntervalFromObject);
+            System.out.println(startNodeIntervalFrom.getSystemTimePoint());
+            System.out.println(endNodeIntervalFrom.getSystemTimePoint());
+            System.out.println(relationshipIntervalFrom.getSystemTimePoint());
             // 检查relationshipIntervalFrom的合法性
             if (!startNodeIntervalFrom.isAfter(relationshipIntervalFrom) && !endNodeIntervalFrom.isAfter(relationshipIntervalFrom)) {
                 List<Relationship> relationships = startNode.getRelationships(RelationshipType.withName(relationshipType)).stream().toList();
@@ -620,7 +629,7 @@ public class UpdatingQuery {
             STimePoint endNodeIntervalTo = new STimePoint(endNodeIntervalToObject);
             STimePoint relationshipIntervalTo = new STimePoint(relationshipIntervalToObject);
             // 检查relationshipIntervalTo的合法性
-            if (!startNodeIntervalTo.isAfter(relationshipIntervalTo) && !endNodeIntervalTo.isAfter(relationshipIntervalTo)) {
+            if (!startNodeIntervalTo.isBefore(relationshipIntervalTo) && !endNodeIntervalTo.isBefore(relationshipIntervalTo)) {
                 List<Relationship> relationships = startNode.getRelationships(RelationshipType.withName(relationshipType)).stream().toList();
                 int count = 0;
                 for (Relationship relationship : relationships) {

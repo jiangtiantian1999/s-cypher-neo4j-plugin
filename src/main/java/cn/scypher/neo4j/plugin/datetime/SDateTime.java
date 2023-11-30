@@ -47,8 +47,8 @@ public class SDateTime {
         this.datetime = ZonedDateTime.of(date.getDate(), time.getTime().toLocalTime(), time.getTime().getOffset());
     }
 
-    public SDuration difference(SDateTime datetime) {
-        return new SDuration(Duration.between(this.datetime, datetime.getDateTime()));
+    public Duration difference(SDateTime datetime) {
+        return Duration.between(this.datetime, datetime.getDateTime());
     }
 
     public boolean isBefore(SDateTime datetime) {

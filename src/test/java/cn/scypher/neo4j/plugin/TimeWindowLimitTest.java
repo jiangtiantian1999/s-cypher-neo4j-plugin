@@ -39,7 +39,7 @@ public class TimeWindowLimitTest {
         this.session.run("CREATE (n:Person {intervalFrom:scypher.timePoint('2010'), intervalTo:scypher.timePoint('NOW')})");
         Record record = this.session.run("MATCH (n:Person) WHERE scypher.limitEffectiveTime([[n, localdatetime('2011')]],null) RETURN n").single();
         System.out.println(record);
-        record = this.session.run("MATCH (n:Person) WHERE scypher.limitEffectiveTime([[n,null]],scypher.interval('2002', '2008')) RETURN count(n)").single();
+        record = this.session.run("MATCH (n:Person) WHERE scypher.limitEffectiveTime([[n, null]], scypher.interval('2002', '2008')) RETURN count(n)").single();
         System.out.println(record);
     }
 

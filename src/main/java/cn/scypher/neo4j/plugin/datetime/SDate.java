@@ -60,8 +60,8 @@ public class SDate {
         }
     }
 
-    public SDuration difference(SDate date) {
-        return new SDuration(Duration.between(this.date, date.getDate()));
+    public Duration difference(SDate date) {
+        return Duration.between(this.date, date.getDate());
     }
 
     public boolean isBefore(SDate date) {

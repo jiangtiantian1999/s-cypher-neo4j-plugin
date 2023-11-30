@@ -1,5 +1,6 @@
 package cn.scypher.neo4j.plugin.datetime;
 
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -115,7 +116,7 @@ public class SInterval {
         }
     }
 
-    public SDuration difference(SInterval interval) {
+    public Duration difference(SInterval interval) {
         if (this.getTimePointType().equals(interval.getTimePointType())) {
             if (!this.overlaps(interval)) {
                 if (this.intervalTo.isBefore(interval.getIntervalFrom())) {

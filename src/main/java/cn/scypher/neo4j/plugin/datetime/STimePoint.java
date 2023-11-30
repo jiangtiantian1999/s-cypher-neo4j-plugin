@@ -90,7 +90,7 @@ public class STimePoint {
         }
     }
 
-    public SDuration difference(STimePoint timePoint) {
+    public Duration difference(STimePoint timePoint) {
         if (this.getTimePointType().equals(timePoint.getTimePointType())) {
             if (this.timePoint instanceof SDate) {
                 return ((SDate) this.timePoint).difference((SDate) timePoint.getTimePoint());

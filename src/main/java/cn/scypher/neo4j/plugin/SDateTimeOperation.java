@@ -6,7 +6,9 @@ import org.neo4j.procedure.Description;
 import org.neo4j.procedure.Name;
 import org.neo4j.procedure.UserFunction;
 
+import java.time.Duration;
 import java.time.temporal.TemporalAmount;
+import java.time.Period;
 import java.util.List;
 import java.util.Map;
 
@@ -46,6 +48,21 @@ public class SDateTimeOperation {
         String timePointType = GlobalVariablesManager.getTimePointType();
         String timezone = GlobalVariablesManager.getTimezone();
         return (new STimePoint(timePointType, timezone)).getSystemTimePoint();
+    }
+
+    /**
+     * @return 返回一个单位时间
+     */
+    @UserFunction("scypher.timePoint.unit")
+    @Description("Get a unit of time.")
+    public TemporalAmount unit() {
+        // 获取用户之前所设置的时间点类型
+        String timePointType = GlobalVariablesManager.getTimePointType();
+        if (timePointType.equals("date")) {
+            return Period.ofYears(1);
+        } else {
+            return Duration.ofNanos(1);
+        }
     }
 
     /**
@@ -129,12 +146,11 @@ public class SDateTimeOperation {
         if (earlierIntervalMap != null && latterIntervalMap != null) {
             SInterval earlierInterval = new SInterval(earlierIntervalMap);
             SInterval latterInterval = new SInterval(latterIntervalMap);
-            return earlierInterval.difference(latterInterval).getDuration();
+            return earlierInterval.difference(latterInterval);
         } else {
             throw new RuntimeException("Missing parameter");
         }
     }
-
 
     /**
      * @param timeElement 时间点/时间区间

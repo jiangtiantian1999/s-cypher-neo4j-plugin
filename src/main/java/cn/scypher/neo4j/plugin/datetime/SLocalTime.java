@@ -55,8 +55,8 @@ public class SLocalTime {
         this.localtime = this.parseLocalTimeMap(localtimeMap);
     }
 
-    public SDuration difference(SLocalTime localtime) {
-        return new SDuration(Duration.between(this.localtime, localtime.getLocalTime()));
+    public Duration difference(SLocalTime localtime) {
+        return Duration.between(this.localtime, localtime.getLocalTime());
     }
 
     public boolean isBefore(SLocalTime localtime) {

@@ -37,8 +37,8 @@ public class SLocalDateTime {
         this.localdatetime = LocalDateTime.of(date.getDate(), localtime.getLocalTime());
     }
 
-    public SDuration difference(SLocalDateTime localdatetime) {
-        return new SDuration(Duration.between(this.localdatetime, localdatetime.getLocalDateTime()));
+    public Duration difference(SLocalDateTime localdatetime) {
+        return Duration.between(this.localdatetime, localdatetime.getLocalDateTime());
     }
 
     public boolean isBefore(SLocalDateTime localdatetime) {

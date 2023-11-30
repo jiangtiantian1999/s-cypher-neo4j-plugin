@@ -77,8 +77,8 @@ public class STime {
         }
     }
 
-    public SDuration difference(STime time) {
-        return new SDuration(Duration.between(this.time, time.getTime()));
+    public Duration difference(STime time) {
+        return Duration.between(this.time, time.getTime());
     }
 
     public boolean isBefore(STime time) {
