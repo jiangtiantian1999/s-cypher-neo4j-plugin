@@ -18,7 +18,7 @@ public class SDate {
 
     public SDate(String dateString) {
         if (dateString.equalsIgnoreCase("NOW")) {
-            this.date = LocalDate.MAX;
+            this.date = LocalDate.MAX.withYear(9999);
         } else {
             Pattern datePattern = Pattern.compile("((?<year>\\d{4})|(?<beyondYear>((\\+)|-)\\d{1,9}))(-?((?<month>\\d{2})(-?(?<day>\\d{2})?)|" +
                     "(W(?<week>\\d{2})(-?(?<dayOfWeek>\\d))?)|" +

@@ -1,5 +1,6 @@
 package cn.scypher.neo4j.plugin;
 
+import cn.scypher.neo4j.plugin.datetime.SDate;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -35,6 +36,8 @@ public class SDateTimeOperationTest {
     public void testTimePoint() {
         System.out.println("testTimePoint");
         Record record = this.session.run("RETURN scypher.timePoint('2010')").single();
+        System.out.println(record);
+        record = this.session.run("RETURN scypher.timePoint('NOW')").single();
         System.out.println(record);
     }
 

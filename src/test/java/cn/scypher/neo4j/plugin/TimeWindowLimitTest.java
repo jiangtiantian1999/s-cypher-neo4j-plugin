@@ -9,6 +9,8 @@ import org.neo4j.driver.Record;
 import org.neo4j.harness.Neo4j;
 import org.neo4j.harness.Neo4jBuilders;
 
+import java.util.List;
+
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public class TimeWindowLimitTest {
     private Driver driver;
@@ -36,11 +38,27 @@ public class TimeWindowLimitTest {
     @Test
     public void testLimitInterval() {
         System.out.println("limitEffectiveTime");
-        this.session.run("CREATE (n:Person {intervalFrom:scypher.timePoint('2010'), intervalTo:scypher.timePoint('NOW')})");
-        Record record = this.session.run("MATCH (n:Person) WHERE scypher.limitEffectiveTime([[n, localdatetime('2011')]],null) RETURN n").single();
-        System.out.println(record);
-        record = this.session.run("MATCH (n:Person) WHERE scypher.limitEffectiveTime([[n, null]], scypher.interval('2002', '2008')) RETURN count(n)").single();
-        System.out.println(record);
+        this.session.run("CREATE (n:Person {name:'Nick', intervalFrom: scypher.timePoint('2010'), intervalTo: scypher.timePoint('NOW')})" +
+                "-[:FRIEND {intervalFrom: scypher.timePoint('2015'), intervalTo: scypher.timePoint('2018')}]->" +
+                "(m:Person {name:'Tom', intervalFrom: scypher.timePoint('2009'), intervalTo: scypher.timePoint('2023')})");
+        List<Record> records = this.session.run("MATCH (n:Person)-[e]->()" +
+                "WHERE scypher.limitEffectiveTime([[e, scypher.timePoint('2015')]], null)" +
+                "RETURN e").list();
+        for (Record record : records) {
+            System.out.println(record);
+        }
+        records = this.session.run("MATCH (n:Person)" +
+                "WHERE scypher.limitEffectiveTime([[n, null]], scypher.interval('2002', '2008')) " +
+                "RETURN count(n)").list();
+        for (Record record : records) {
+            System.out.println(record);
+        }
+        records = this.session.run("MATCH (n:Person)" +
+                "WHERE scypher.limitEffectiveTime([[n, scypher.interval('2010', 'NOW')]], null) " +
+                "RETURN n.name").list();
+        for (Record record : records) {
+            System.out.println(record);
+        }
     }
 
     @Test

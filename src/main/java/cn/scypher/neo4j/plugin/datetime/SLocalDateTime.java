@@ -18,7 +18,7 @@ public class SLocalDateTime {
 
     public SLocalDateTime(String localdatetimeString) {
         if (localdatetimeString.equalsIgnoreCase("NOW")) {
-            this.localdatetime = LocalDateTime.MAX;
+            this.localdatetime = LocalDateTime.MAX.withYear(9999);
         } else {
             String[] localdatetimeStringList = localdatetimeString.split("T");
             SDate date = new SDate(localdatetimeStringList[0]);
