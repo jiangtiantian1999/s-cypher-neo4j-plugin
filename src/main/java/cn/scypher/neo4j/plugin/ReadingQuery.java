@@ -117,33 +117,36 @@ public class ReadingQuery {
     }
 
     /**
-     * @param objectNode   对象节点/Map类型数据
+     * @param object       对象节点/Map类型数据
      * @param propertyName 属性名
-     * @return 如果objectNode为对象节点，返回对应属性节点的有效时间；如果objectNode为Map类型数据，且objectNode.propertyName为对象节点/边，返回该对象节点/边的有效时间。
+     * @return 如果objectNode为对象节点，属性名不为null，返回对应属性节点的有效时间；如果objectNode为对象节点，属性名为null，返回对象节点的有效时间；
+     * 如果objectNode为Map类型数据，且属性名不为null，且objectNode.propertyName为对象节点/边，返回该对象节点/边的有效时间。
      */
     @UserFunction("scypher.getPropertyEffectiveTime")
     @Description("Get the effective time of property node.")
-    public Object getPropertyEffectiveTime(@Name("node") Object objectNode, @Name("propertyName") String propertyName) {
-        if (objectNode != null && propertyName != null) {
-            if (objectNode instanceof Node) {
-                Node propertyNode = getPropertyNode((Node) objectNode, propertyName);
+    public Object getPropertyEffectiveTime(@Name("node") Object object, @Name("propertyName") String propertyName) {
+        if (object != null) {
+            if (object instanceof Node objectNode) {
+                Node propertyNode = getPropertyNode(objectNode, propertyName);
                 if (propertyNode != null) {
                     return new SInterval(new STimePoint(propertyNode.getProperty("intervalFrom")), new STimePoint(propertyNode.getProperty("intervalTo"))).getSystemInterval();
                 } else {
-                    return null;
+                    return new SInterval(new STimePoint(objectNode.getProperty("intervalFrom")), new STimePoint(objectNode.getProperty("intervalTo"))).getSystemInterval();
                 }
-            } else if (objectNode instanceof Map) {
-                Map<String, Object> objectMap = (Map<String, Object>) objectNode;
-                if (objectMap.containsKey(propertyName)) {
+            } else if (object instanceof Map) {
+                Map<String, Object> objectMap = (Map<String, Object>) object;
+                if (propertyName != null && objectMap.containsKey(propertyName)) {
                     if (objectMap.get(propertyName) instanceof Node node) {
                         return new SInterval(new STimePoint(node.getProperty("intervalFrom")), new STimePoint(node.getProperty("intervalTo"))).getSystemInterval();
                     } else if (objectMap.get(propertyName) instanceof Relationship relationship) {
                         return new SInterval(new STimePoint(relationship.getProperty("intervalFrom")), new STimePoint(relationship.getProperty("intervalTo"))).getSystemInterval();
+                    }else{
+                        throw new RuntimeException(objectMap.get(propertyName).getClass().getSimpleName() + " doesn't have effective time");
                     }
                 }
-                return null;
+                throw new RuntimeException("NULL doesn't have effective time");
             } else {
-                throw new RuntimeException("Type mismatch: expected Node or Map but was " + objectNode.getClass().getSimpleName());
+                throw new RuntimeException(object.getClass().getSimpleName() + " doesn't have effective time");
             }
         } else {
             throw new RuntimeException("Missing parameter");
@@ -163,6 +166,18 @@ public class ReadingQuery {
             Node propertyNode = getPropertyNode(objectNode, propertyName);
             if (propertyNode != null) {
                 List<Node> valueNodeList = getValueNodes(propertyNode, timeWindow);
+                // 以开始时间的先后顺序排序值节点
+                valueNodeList.sort((o1, o2) -> {
+                    STimePoint timePoint1 = new STimePoint(o1.getProperty("intervalFrom"));
+                    STimePoint timePoint2 = new STimePoint(o2.getProperty("intervalTo"));
+                    if (timePoint1.isBefore(timePoint2)) {
+                        return -1;
+                    } else if (timePoint1.isAfter(timePoint2)) {
+                        return 1;
+                    } else {
+                        return 0;
+                    }
+                });
                 List<Map<String, Object>> valueEffectiveTimeList = new ArrayList<>();
                 for (Node valueNode : valueNodeList) {
                     valueEffectiveTimeList.add(new SInterval(new STimePoint(valueNode.getProperty("intervalFrom")), new STimePoint(valueNode.getProperty("intervalTo"))).getSystemInterval());
