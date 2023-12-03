@@ -9,6 +9,7 @@ import org.neo4j.procedure.UserFunction;
 
 import java.time.*;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 
@@ -76,6 +77,18 @@ public class ReadingQuery {
                 Node propertyNode = getPropertyNode(objectNode, propertyName);
                 if (propertyNode != null) {
                     List<Node> valueNodeList = getValueNodes(propertyNode, timeWindow);
+                    // 以开始时间的先后顺序排序值节点
+                    valueNodeList.sort((o1, o2) -> {
+                        STimePoint timePoint1 = new STimePoint(o1.getProperty("intervalFrom"));
+                        STimePoint timePoint2 = new STimePoint(o2.getProperty("intervalTo"));
+                        if (timePoint1.isBefore(timePoint2)) {
+                            return -1;
+                        } else if (timePoint1.isAfter(timePoint2)) {
+                            return 1;
+                        } else {
+                            return 0;
+                        }
+                    });
                     List<Object> propertyValueList = new ArrayList<>();
                     for (Node valueNode : valueNodeList) {
                         propertyValueList.add(valueNode.getProperty("content"));

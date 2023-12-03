@@ -50,7 +50,7 @@ public class UpdatingQuery {
     /**
      * @param object       对象节点/关系/路径
      * @param propertyName 属性名
-     * @param timeWindow   删除的值节点的范围/[是否仅删除值节点]
+     * @param timeWindow   时间点/时间区间/boolean类型，表示删除的值节点的范围/[是否仅删除值节点]
      * @return 以列表形式返回所有待物理删除的属性节点和值节点
      */
     @UserFunction("scypher.getItemsToDelete")
