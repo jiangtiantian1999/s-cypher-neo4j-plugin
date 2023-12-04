@@ -50,6 +50,10 @@ public class SDateTimeOperationTest {
         System.out.println(record);
         record = this.session.run("RETURN scypher.timePoint('2015Q260')").single();
         System.out.println(record);
+        record = this.session.run("RETURN scypher.timePoint('2015W302')").single();
+        System.out.println(record);
+        record = this.session.run("RETURN scypher.timePoint('2015W01-1')").single();
+        System.out.println(record);
     }
 
     @Test

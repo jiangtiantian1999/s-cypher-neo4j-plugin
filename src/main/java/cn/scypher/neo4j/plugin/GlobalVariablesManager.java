@@ -5,7 +5,7 @@ import cn.scypher.neo4j.plugin.datetime.STimePoint;
 
 public class GlobalVariablesManager {
 
-    private static String timePointType = "localdatetime";
+    private static String timePointType = "datetime";
 
     private static String timezone = null;
 

@@ -16,12 +16,11 @@ public class SDateTime {
     }
 
     public SDateTime(String datetimeString, String timezone) {
+        if (timezone == null) {
+            timezone = "Z";
+        }
         if (datetimeString.equalsIgnoreCase("NOW")) {
-            if (timezone == null) {
-                this.datetime = ZonedDateTime.of(LocalDateTime.MAX, ZoneOffset.UTC).withYear(9999);
-            } else {
-                this.datetime = ZonedDateTime.now(ZoneOffset.of(timezone)).withYear(9999);
-            }
+            this.datetime = ZonedDateTime.of(LocalDateTime.MAX, ZoneOffset.of(timezone)).withYear(9999);
         } else {
             String[] datetimeStringList = datetimeString.split("T");
             SDate date = new SDate(datetimeStringList[0]);

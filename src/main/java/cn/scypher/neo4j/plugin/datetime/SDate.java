@@ -21,10 +21,10 @@ public class SDate {
         if (dateString.equalsIgnoreCase("NOW")) {
             this.date = LocalDate.MAX.withYear(9999);
         } else {
-            Pattern datePattern = Pattern.compile("((?<year>\\d{4})|(?<beyondYear>((\\+)|-)\\d{1,9}))((?<ordinalDay>\\d{3}$)|" +
-                    "(-?(?<month>\\d{2})(-?(?<day>\\d{2})?))|" +
-                    "(W(?<week>\\d{2})(-?(?<dayOfWeek>\\d))?)|" +
-                    "(Q(?<quarter>\\d)(-?(?<dayOfQuarter>\\d{2}))?))?");
+            Pattern datePattern = Pattern.compile("((?<year>\\d{4})|(?<beyondYear>((\\+)|-)\\d{1,9}))((-?(?<ordinalDay>\\d{3})$)|" +
+                    "(-?(?<month>\\d{1,2})(-?(?<day>\\d{1,2})?))|" +
+                    "(-?W(?<week>\\d{1,2})(-?(?<dayOfWeek>\\d))?)|" +
+                    "(-?Q(?<quarter>\\d)(-?(?<dayOfQuarter>\\d{1,2}))?))?");
             Matcher matcher = datePattern.matcher(dateString.trim());
             Map<String, Number> dateMap = new HashMap<>();
             String[] dateComponents = {"year", "beyondYear", "month", "day", "week", "dayOfWeek", "quarter", "dayOfQuarter", "ordinalDay"};
@@ -90,7 +90,7 @@ public class SDate {
             Calendar calendar = Calendar.getInstance();
             int[] weekdays = {Calendar.MONDAY, Calendar.TUESDAY, Calendar.WEDNESDAY, Calendar.THURSDAY, Calendar.FRIDAY, Calendar.SATURDAY, Calendar.SUNDAY};
             calendar.setWeekDate(year, week, weekdays[dayOfWeek - 1]);
-            return LocalDate.of(year, calendar.get(Calendar.MONTH), calendar.get(Calendar.DAY_OF_MONTH));
+            return LocalDate.ofInstant(calendar.toInstant(), ZoneId.of("Z"));
         } else if (dateMap.containsKey("quarter")) {
             int quarter = dateMap.get("quarter").intValue();
             int dayOfQuarter = 1;

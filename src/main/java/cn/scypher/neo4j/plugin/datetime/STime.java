@@ -18,12 +18,11 @@ public class STime {
     }
 
     public STime(String timeString, String timezone) {
+        if (timezone == null) {
+            timezone = "Z";
+        }
         if (timeString.equalsIgnoreCase("NOW")) {
-            if (timezone == null) {
-                this.time = OffsetTime.of(LocalTime.MAX, ZoneOffset.UTC);
-            } else {
-                this.time = OffsetTime.of(LocalTime.MAX, ZoneOffset.of(timezone));
-            }
+            this.time = OffsetTime.of(LocalTime.MAX, ZoneOffset.of(timezone));
         } else {
             Pattern localtimePattern = Pattern.compile("(?<hour>\\d{2})(:?(?<minute>\\d{2})((:?(?<second>\\d{2}))((.|,)(?<nanosecond>\\d{1,9}))?)?)?");
             Pattern timezonePattern = Pattern.compile("(?<Z>Z)|(\\[(?<zoneName1>[\\w/]+)\\])|(((?<plus>\\+)|(?<minus>-))(?<hours>\\d{2})(:?(?<minutes>\\d{2}))?(\\[(?<zoneName2>[\\w/]+)\\])?)");
