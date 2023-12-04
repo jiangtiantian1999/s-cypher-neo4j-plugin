@@ -59,11 +59,12 @@ public class STime {
             throw new RuntimeException("The combination of the time components is incorrect.");
         }
         // 不能跨过粗粒度的时间单位指定细粒度的时间单位
-        if ((timeMap.containsKey("nanosecond") && !timeMap.containsKey("second")) | (timeMap.containsKey("second") && !timeMap.containsKey("minute"))
+        if (((timeMap.containsKey("nanosecond") | timeMap.containsKey("microsecond") | timeMap.containsKey("millisecond")) && !timeMap.containsKey("second"))
+                | (timeMap.containsKey("second") && !timeMap.containsKey("minute"))
                 | (timeMap.containsKey("minute") && !timeMap.containsKey("hour"))) {
             throw new RuntimeException("The combination of the time components is incorrect.");
         }
-        String[] timeComponents = {"hour", "minute", "second", "nanosecond"};
+        String[] timeComponents = {"hour", "minute", "second", "millisecond", "microsecond", "nanosecond"};
         Map<String, Integer> timeIntegerMap = new HashMap<>();
         for (String component : timeComponents) {
             if (timeMap.containsKey(component)) {
@@ -98,7 +99,9 @@ public class STime {
         int hour = timeMap.getOrDefault("hour", 0);
         int minute = timeMap.getOrDefault("minute", 0);
         int second = timeMap.getOrDefault("second", 0);
-        int nanosecond = timeMap.getOrDefault("nanosecond", 0);
+        int millisecond = timeMap.getOrDefault("millisecond", 0);
+        int microsecond = timeMap.getOrDefault("microsecond", 0);
+        int nanosecond = timeMap.getOrDefault("nanosecond", 0) + millisecond * 1000000 + microsecond * 1000;
         if (timezone != null) {
             return OffsetTime.of(hour, minute, second, nanosecond, ZoneOffset.of(timezone));
         } else {

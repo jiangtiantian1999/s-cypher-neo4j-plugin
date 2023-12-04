@@ -36,14 +36,20 @@ public class SDateTime {
 
     public SDateTime(Map<String, Object> datetimeMap, String timezone) {
         String[] dateComponents = {"year", "month", "day", "week", "dayOfWeek", "quarter", "dayOfQuarter", "ordinalDay"};
-        Map<String, Integer> dateMap = new HashMap<>();
+        Map<String, Number> dateMap = new HashMap<>();
         for (String component : dateComponents) {
             if (datetimeMap.containsKey(component)) {
-                dateMap.put(component, (Integer) datetimeMap.get(component));
+                dateMap.put(component, (Number) datetimeMap.get(component));
             }
         }
         SDate date = new SDate(dateMap);
-        STime time = new STime(datetimeMap, timezone);
+        STime time;
+        if (datetimeMap.containsKey("hour") | datetimeMap.containsKey("minute") | datetimeMap.containsKey("second")
+                | datetimeMap.containsKey("millisecond") | datetimeMap.containsKey("microsecond") | datetimeMap.containsKey("nanosecond")) {
+            time = new STime(datetimeMap, timezone);
+        } else {
+            time = new STime("00", timezone);
+        }
         this.datetime = ZonedDateTime.of(date.getDate(), time.getTime().toLocalTime(), time.getTime().getOffset());
     }
 

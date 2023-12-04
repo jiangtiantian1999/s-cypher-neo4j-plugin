@@ -31,9 +31,15 @@ public class SLocalDateTime {
         }
     }
 
-    public SLocalDateTime(Map<String, Integer> datetimeMap) {
+    public SLocalDateTime(Map<String, Number> datetimeMap) {
         SDate date = new SDate(datetimeMap);
-        SLocalTime localtime = new SLocalTime(datetimeMap);
+        SLocalTime localtime;
+        if (datetimeMap.containsKey("hour") | datetimeMap.containsKey("minute") | datetimeMap.containsKey("second")
+                | datetimeMap.containsKey("millisecond") | datetimeMap.containsKey("microsecond") | datetimeMap.containsKey("nanosecond")) {
+            localtime = new SLocalTime(datetimeMap);
+        } else {
+            localtime = new SLocalTime("00");
+        }
         this.localdatetime = LocalDateTime.of(date.getDate(), localtime.getLocalTime());
     }
 

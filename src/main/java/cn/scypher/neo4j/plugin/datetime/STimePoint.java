@@ -51,7 +51,7 @@ public class STimePoint {
                     if (timePoint instanceof String) {
                         this.timePoint = new SDate((String) timePoint);
                     } else {
-                        this.timePoint = new SDate((Map<String, Integer>) timePoint);
+                        this.timePoint = new SDate((Map<String, Number>) timePoint);
                     }
                 }
                 case "time" -> {
@@ -65,7 +65,7 @@ public class STimePoint {
                     if (timePoint instanceof String) {
                         this.timePoint = new SLocalTime((String) timePoint);
                     } else {
-                        this.timePoint = new SLocalTime((Map<String, Integer>) timePoint);
+                        this.timePoint = new SLocalTime((Map<String, Number>) timePoint);
                     }
                 }
                 case "datetime" -> {
@@ -79,7 +79,7 @@ public class STimePoint {
                     if (timePoint instanceof String) {
                         this.timePoint = new SLocalDateTime((String) timePoint);
                     } else {
-                        this.timePoint = new SLocalDateTime((Map<String, Integer>) timePoint);
+                        this.timePoint = new SLocalDateTime((Map<String, Number>) timePoint);
                     }
                 }
                 default ->

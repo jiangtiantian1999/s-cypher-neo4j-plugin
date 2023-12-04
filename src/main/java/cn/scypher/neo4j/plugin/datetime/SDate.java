@@ -1,5 +1,6 @@
 package cn.scypher.neo4j.plugin.datetime;
 
+import javax.swing.*;
 import java.time.*;
 import java.util.*;
 import java.util.regex.Matcher;
@@ -24,7 +25,7 @@ public class SDate {
                     "(W(?<week>\\d{2})(-?(?<dayOfWeek>\\d))?)|" +
                     "(Q(?<quarter>\\d)(-?(?<dayOfQuarter>\\d{2}))?)|(?<ordinalDay>\\d{3})))?");
             Matcher matcher = datePattern.matcher(dateString.trim());
-            Map<String, Integer> dateMap = new HashMap<>();
+            Map<String, Number> dateMap = new HashMap<>();
             String[] dateComponents = {"year", "beyondYear", "month", "day", "week", "dayOfWeek", "quarter", "dayOfQuarter", "ordinalDay"};
             if (matcher.find()) {
                 for (String component : dateComponents) {
@@ -43,10 +44,10 @@ public class SDate {
 
     }
 
-    public SDate(Map<String, Integer> dateMap) {
+    public SDate(Map<String, Number> dateMap) {
         // 至少指定year
         if (dateMap.containsKey("year")) {
-            if ((dateMap.containsKey("month") ? 1 : 0) + (dateMap.containsKey("week") ? 1 : 0) + (dateMap.containsKey("quarter") ? 1 : 0) + (dateMap.containsKey("ordinalDay") ? 1 : 0) < 3) {
+            if ((dateMap.containsKey("month") ? 1 : 0) + (dateMap.containsKey("week") ? 1 : 0) + (dateMap.containsKey("quarter") ? 1 : 0) + (dateMap.containsKey("ordinalDay") ? 1 : 0) > 1) {
                 throw new RuntimeException("The combination of the date components is incorrect.");
             }
             if ((dateMap.containsKey("day") && !dateMap.containsKey("month"))
@@ -76,15 +77,15 @@ public class SDate {
         return this.date;
     }
 
-    private LocalDate parseDateMap(Map<String, Integer> dateMap) {
-        int year = dateMap.get("year");
+    private LocalDate parseDateMap(Map<String, Number> dateMap) {
+        int year = dateMap.get("year").intValue();
         if (dateMap.containsKey("month")) {
-            int month = dateMap.get("month");
-            int day = dateMap.getOrDefault("day", 1);
+            int month = dateMap.get("month").intValue();
+            int day = dateMap.getOrDefault("day", 1).intValue();
             return LocalDate.of(year, month, day);
         } else if (dateMap.containsKey("week")) {
-            int week = dateMap.get("week");
-            int dayOfWeek = dateMap.getOrDefault("dayOfWeek", 1);
+            int week = dateMap.get("week").intValue();
+            int dayOfWeek = dateMap.getOrDefault("dayOfWeek", 1).intValue();
             Calendar calendar = Calendar.getInstance();
             int[] weekdays = {Calendar.MONDAY, Calendar.TUESDAY, Calendar.WEDNESDAY, Calendar.THURSDAY, Calendar.FRIDAY, Calendar.SATURDAY, Calendar.SUNDAY};
             calendar.setWeekDate(year, week, weekdays[dayOfWeek - 1]);
@@ -98,10 +99,10 @@ public class SDate {
             int febDays = calendar.getActualMaximum(Calendar.DATE);
             int[] quarter = {1, 4, 7, 10};
             int[] quarterLength = {31, febDays + 31, febDays + 62, 30, 61, 91, 31, 62, 92, 31, 61, 92};
-            int month = quarter[dateMap.get("quarter") - 1];
+            int month = quarter[dateMap.get("quarter").intValue() - 1];
             int dayOfQuarter = 1;
             if (dateMap.containsKey("dayOfQuarter")) {
-                dayOfQuarter = dateMap.get("dayOfQuarter");
+                dayOfQuarter = dateMap.get("dayOfQuarter").intValue();
             }
             int dayOfMonth;
             if (dayOfQuarter <= quarterLength[month - 1]) {
@@ -117,7 +118,7 @@ public class SDate {
             }
             return LocalDate.of(year, month, dayOfMonth);
         } else if (dateMap.containsKey("ordinalDay")) {
-            return LocalDate.ofYearDay(year, dateMap.get("ordinalDay"));
+            return LocalDate.ofYearDay(year, dateMap.get("ordinalDay").intValue());
         }
         return LocalDate.of(year, 1, 1);
     }

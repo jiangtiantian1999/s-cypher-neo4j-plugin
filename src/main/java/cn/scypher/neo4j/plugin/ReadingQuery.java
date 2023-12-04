@@ -140,7 +140,7 @@ public class ReadingQuery {
                         return new SInterval(new STimePoint(node.getProperty("intervalFrom")), new STimePoint(node.getProperty("intervalTo"))).getSystemInterval();
                     } else if (objectMap.get(propertyName) instanceof Relationship relationship) {
                         return new SInterval(new STimePoint(relationship.getProperty("intervalFrom")), new STimePoint(relationship.getProperty("intervalTo"))).getSystemInterval();
-                    }else{
+                    } else {
                         throw new RuntimeException(objectMap.get(propertyName).getClass().getSimpleName() + " doesn't have effective time");
                     }
                 }

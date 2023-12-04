@@ -24,7 +24,7 @@ public class SLocalTime {
         } else {
             Pattern localtimePattern = Pattern.compile("(?<hour>\\d{2})(:?(?<minute>\\d{2})((:?(?<second>\\d{2}))((.|,)(?<nanosecond>\\d{1,9}))?)?)?");
             Matcher matcher = localtimePattern.matcher(localtimeString.trim());
-            Map<String, Integer> localtimeMap = new HashMap<>();
+            Map<String, Number> localtimeMap = new HashMap<>();
             String[] timeComponents = {"hour", "minute", "second", "nanosecond"};
             if (matcher.find()) {
                 for (String component : timeComponents) {
@@ -43,13 +43,15 @@ public class SLocalTime {
         }
     }
 
-    public SLocalTime(Map<String, Integer> localtimeMap) {
+    public SLocalTime(Map<String, Number> localtimeMap) {
         // 至少指定hour
         if (!localtimeMap.containsKey("hour")) {
             throw new RuntimeException("The combination of the time components is incorrect.");
         }
         // 不能跨过粗粒度的时间单位指定细粒度的时间单位
-        if ((localtimeMap.containsKey("nanosecond") && !localtimeMap.containsKey("second")) | (localtimeMap.containsKey("second") && !localtimeMap.containsKey("minute"))) {
+        if (((localtimeMap.containsKey("nanosecond") | localtimeMap.containsKey("microsecond") | localtimeMap.containsKey("millisecond")) && !localtimeMap.containsKey("second"))
+                | (localtimeMap.containsKey("second") && !localtimeMap.containsKey("minute"))
+                | (localtimeMap.containsKey("minute") && !localtimeMap.containsKey("hour"))) {
             throw new RuntimeException("The combination of the time components is incorrect.");
         }
         this.localtime = this.parseLocalTimeMap(localtimeMap);
@@ -72,11 +74,13 @@ public class SLocalTime {
         return this.localtime;
     }
 
-    private LocalTime parseLocalTimeMap(Map<String, Integer> localtimeMap) {
-        int hour = localtimeMap.getOrDefault("hour", 0);
-        int minute = localtimeMap.getOrDefault("minute", 0);
-        int second = localtimeMap.getOrDefault("second", 0);
-        int nanosecond = localtimeMap.getOrDefault("nanosecond", 0);
+    private LocalTime parseLocalTimeMap(Map<String, Number> localtimeMap) {
+        int hour = localtimeMap.getOrDefault("hour", 0).intValue();
+        int minute = localtimeMap.getOrDefault("minute", 0).intValue();
+        int second = localtimeMap.getOrDefault("second", 0).intValue();
+        int millisecond = localtimeMap.getOrDefault("millisecond", 0).intValue();
+        int microsecond = localtimeMap.getOrDefault("microsecond", 0).intValue();
+        int nanosecond = localtimeMap.getOrDefault("nanosecond", 0).intValue() + millisecond * 1000000 + microsecond * 1000;
         return LocalTime.of(hour, minute, second, nanosecond);
     }
 }
