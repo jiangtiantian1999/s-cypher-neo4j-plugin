@@ -55,6 +55,8 @@ public class SDateTimeOperationTest {
         System.out.println("testInterval");
         Record record = this.session.run("RETURN scypher.interval('2010', 'NOW')").single();
         System.out.println(record);
+        record = this.session.run("RETURN scypher.interval('2015202','20151001')").single();
+        System.out.println(record);
 
     }
 
