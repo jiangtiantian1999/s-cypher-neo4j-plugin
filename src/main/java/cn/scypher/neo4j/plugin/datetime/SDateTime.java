@@ -8,6 +8,8 @@ public class SDateTime {
     private final ZonedDateTime datetime;
 
     public SDateTime(String timezone) {
+        if (timezone == null)
+            timezone = "Z";
         this.datetime = ZonedDateTime.now(ZoneOffset.of(timezone));
     }
 

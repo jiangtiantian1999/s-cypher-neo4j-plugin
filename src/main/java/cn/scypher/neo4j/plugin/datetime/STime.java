@@ -10,6 +10,8 @@ public class STime {
     private final OffsetTime time;
 
     public STime(String timezone) {
+        if (timezone == null)
+            timezone = "Z";
         this.time = OffsetTime.now(ZoneOffset.of(timezone));
     }
 
