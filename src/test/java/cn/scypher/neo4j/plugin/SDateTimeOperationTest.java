@@ -48,6 +48,8 @@ public class SDateTimeOperationTest {
         System.out.println(record);
         record = this.session.run("RETURN scypher.timePoint({year:2016, month:10, day:1})").single();
         System.out.println(record);
+        record = this.session.run("RETURN scypher.timePoint('2015Q260')").single();
+        System.out.println(record);
     }
 
     @Test

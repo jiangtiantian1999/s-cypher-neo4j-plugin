@@ -92,30 +92,29 @@ public class SDate {
             calendar.setWeekDate(year, week, weekdays[dayOfWeek - 1]);
             return LocalDate.of(year, calendar.get(Calendar.MONTH), calendar.get(Calendar.DAY_OF_MONTH));
         } else if (dateMap.containsKey("quarter")) {
-            // 将一年中的第q个季节的第d天，转换为一年中的m月n日
-            // 获取该年2月的天数
-            Calendar calendar = Calendar.getInstance();
-            calendar.set(year, Calendar.APRIL, 1);
-            calendar.roll(Calendar.DATE, -1);
-            int febDays = calendar.getActualMaximum(Calendar.DATE);
-            int[] quarter = {1, 4, 7, 10};
-            int[] quarterLength = {31, febDays + 31, febDays + 62, 30, 61, 91, 31, 62, 92, 31, 61, 92};
-            int month = quarter[dateMap.get("quarter").intValue() - 1];
+            int quarter = dateMap.get("quarter").intValue();
             int dayOfQuarter = 1;
             if (dateMap.containsKey("dayOfQuarter")) {
                 dayOfQuarter = dateMap.get("dayOfQuarter").intValue();
             }
+            // 将一年中的第q个季节的第d天，转换为一年中的m月n日
+            // 获取该年2月的天数
+            Calendar calendar = Calendar.getInstance();
+            calendar.set(year, Calendar.FEBRUARY, 1);
+            int febDays = calendar.getActualMaximum(Calendar.DAY_OF_MONTH);
+            int[] monthLength = {31, febDays + 31, febDays + 62, 30, 61, 91, 31, 62, 92, 31, 61, 92};
+            int month = new int[]{1, 4, 7, 10}[quarter - 1];
             int dayOfMonth;
-            if (dayOfQuarter <= quarterLength[month - 1]) {
+            if (dayOfQuarter <= monthLength[month - 1]) {
                 dayOfMonth = dayOfQuarter;
-            } else if (dayOfQuarter <= quarterLength[month]) {
+            } else if (dayOfQuarter <= monthLength[month]) {
+                dayOfMonth = dayOfQuarter - monthLength[month - 1];
                 month += 1;
-                dayOfMonth = dayOfQuarter - quarterLength[month - 1];
-            } else if (dayOfQuarter <= quarterLength[month + 1]) {
+            } else if (dayOfQuarter <= monthLength[month + 1]) {
+                dayOfMonth = dayOfQuarter - monthLength[month];
                 month += 2;
-                dayOfMonth = dayOfQuarter - quarterLength[month];
             } else {
-                throw new RuntimeException("The day of quarter must be in 1..90(,91,92).");
+                throw new RuntimeException("The day of quarter must be in 1..90/91/92");
             }
             return LocalDate.of(year, month, dayOfMonth);
         } else if (dateMap.containsKey("ordinalDay")) {
