@@ -368,11 +368,8 @@ public class UpdatingQuery {
                                     itemToSetExpression.put("createValueNodes", createValueNode);
                                 }
                             } else {
-                                // 删除已有值节点（而不删除属性节点）
-                                List<Object> deleteItems = new ArrayList<>();
-                                deleteItems.add(valueNode.getSingleRelationship(RelationshipType.withName("PROPERTY_VALUE"), Direction.INCOMING));
-                                deleteItems.add(valueNode);
-                                itemToSetExpression.put("deleteItems", deleteItems);
+                                // 逻辑删除已有值节点（而不删除属性节点）
+                                itemToSetExpression.put("staleValueNodes", valueNode);
                             }
                         } else {
                             throw new RuntimeException("The effective time overlaps multiple effective time of value nodes. Please alter the operate time");
@@ -420,11 +417,6 @@ public class UpdatingQuery {
                         List<Node> propertyNodeList = new ArrayList<>();
                         propertyNodeList.add((Node) getItemToSetExpression.get("createValueNode"));
                         itemsToSetExpression.put("createValueNode", propertyNodeList);
-                    }
-                    if (getItemToSetExpression.containsKey("staleValueNodes")) {
-                        List<Node> setItemList = new ArrayList<>();
-                        setItemList.add((Node) getItemToSetExpression.get("staleValueNodes"));
-                        itemsToSetExpression.put("setValueNodes", setItemList);
                     }
                     if (getItemToSetExpression.containsKey("staleValueNodes")) {
                         List<Node> staleValueNodes = new ArrayList<>();
