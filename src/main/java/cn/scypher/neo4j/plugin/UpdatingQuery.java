@@ -6,6 +6,7 @@ import org.neo4j.graphdb.*;
 import org.neo4j.procedure.Description;
 import org.neo4j.procedure.Name;
 import org.neo4j.procedure.UserFunction;
+import scala.concurrent.impl.FutureConvertersImpl;
 
 import java.time.*;
 import java.util.*;
@@ -607,16 +608,16 @@ public class UpdatingQuery {
     }
 
     /**
-     * @param superiorIntervalFrom    所属对象节点/属性节点的开始时间
+     * @param superiorNode    所属对象节点/属性节点
      * @param subordinateIntervalFrom 待设置的属性节点/值节点的开始时间
      * @return 如果属性节点/值节点的开始时间满足约束，则返回subordinateIntervalFrom；反之，则报错。
      */
     @UserFunction("scypher.getIntervalFromOfSubordinateNode")
     @Description("Get the start time of property node or value node.")
-    public Object getIntervalFromOfSubordinateNode(@Name("superiorIntervalFrom") Object superiorIntervalFrom, @Name("subordinateIntervalFrom") Object subordinateIntervalFrom) {
-        if (superiorIntervalFrom != null && subordinateIntervalFrom != null) {
+    public Object getIntervalFromOfSubordinateNode(@Name("superiorIntervalFrom") Node superiorNode, @Name("subordinateIntervalFrom") Object subordinateIntervalFrom) {
+        if (superiorNode != null && subordinateIntervalFrom != null) {
             // 检查subordinateIntervalFrom的合法性
-            if ((new STimePoint(superiorIntervalFrom)).isAfter(new STimePoint(subordinateIntervalFrom))) {
+            if ((new STimePoint(superiorNode.getProperty("intervalFrom"))).isAfter(new STimePoint(subordinateIntervalFrom))) {
                 throw new RuntimeException("The effective time of subordinate node must in the effective time of it's superior node");
             } else {
                 return subordinateIntervalFrom;
@@ -627,16 +628,16 @@ public class UpdatingQuery {
     }
 
     /**
-     * @param superiorIntervalTo    所属对象节点/属性节点的结束时间
+     * @param superiorNode          所属对象节点/属性节点
      * @param subordinateIntervalTo 待设置的属性节点/值节点的结束时间
      * @return 如果属性节点/值节点的结束时间满足约束，则返回subordinateIntervalTo；反之，则报错。
      */
     @UserFunction("scypher.getIntervalToOfSubordinateNode")
     @Description("Get the end time of property node or value node.")
-    public Object getIntervalToOfSubordinateNode(@Name("superiorIntervalTo") Object superiorIntervalTo, @Name("subordinateIntervalTo") Object subordinateIntervalTo) {
-        if (superiorIntervalTo != null && subordinateIntervalTo != null) {
+    public Object getIntervalToOfSubordinateNode(@Name("superiorNode") Node superiorNode, @Name("subordinateIntervalTo") Object subordinateIntervalTo) {
+        if (superiorNode != null && subordinateIntervalTo != null) {
             // 检查subordinateIntervalTo的合法性
-            if ((new STimePoint(superiorIntervalTo)).isBefore(new STimePoint(subordinateIntervalTo))) {
+            if ((new STimePoint(superiorNode.getProperty("intervalTo"))).isBefore(new STimePoint(subordinateIntervalTo))) {
                 throw new RuntimeException("The effective time of subordinate node must in the effective time of it's superior node");
             } else {
                 return subordinateIntervalTo;
@@ -647,8 +648,6 @@ public class UpdatingQuery {
     }
 
     /**
-     * @param startNodeIntervalFromObject    开始节点的开始时间
-     * @param endNodeIntervalFromObject      结束节点的开始时间
      * @param startNode                      开始节点
      * @param endNode                        结束节点
      * @param relationshipType               关系的类型
@@ -657,27 +656,19 @@ public class UpdatingQuery {
      */
     @UserFunction("scypher.getIntervalFromOfRelationship")
     @Description("Get the start time of relationship.")
-    public Object getIntervalFromOfRelationship(@Name("startNodeIntervalFrom") Object startNodeIntervalFromObject, @Name("endNodeIntervalFrom") Object endNodeIntervalFromObject, @Name("startNode") Node startNode, @Name("endNode") Node endNode, @Name("relationshipType") String relationshipType, @Name("relationshipIntervalFrom") Object relationshipIntervalFromObject) {
-        if (startNodeIntervalFromObject != null && endNodeIntervalFromObject != null && relationshipType != null && relationshipIntervalFromObject != null) {
-            STimePoint startNodeIntervalFrom = new STimePoint(startNodeIntervalFromObject);
-            STimePoint endNodeIntervalFrom = new STimePoint(endNodeIntervalFromObject);
+    public Object getIntervalFromOfRelationship(@Name("startNode") Node startNode, @Name("endNode") Node endNode, @Name("relationshipType") String relationshipType, @Name("relationshipIntervalFrom") Object relationshipIntervalFromObject) {
+        if (startNode != null && endNode != null && relationshipType != null && relationshipIntervalFromObject != null) {
+            STimePoint startNodeIntervalFrom = new STimePoint(startNode.getProperty("intervalFrom"));
+            STimePoint endNodeIntervalFrom = new STimePoint(endNode.getProperty("intervalFrom"));
             STimePoint relationshipIntervalFrom = new STimePoint(relationshipIntervalFromObject);
-            System.out.println(startNodeIntervalFrom.getSystemTimePoint());
-            System.out.println(endNodeIntervalFrom.getSystemTimePoint());
-            System.out.println(relationshipIntervalFrom.getSystemTimePoint());
             // 检查relationshipIntervalFrom的合法性
             if (!startNodeIntervalFrom.isAfter(relationshipIntervalFrom) && !endNodeIntervalFrom.isAfter(relationshipIntervalFrom)) {
                 List<Relationship> relationships = startNode.getRelationships(RelationshipType.withName(relationshipType)).stream().toList();
-                int count = 0;
                 for (Relationship relationship : relationships) {
                     if (relationship.hasProperty("intervalFrom") && relationship.hasProperty("intervalTo")) {
                         SInterval relationInterval = new SInterval(new STimePoint(relationship.getProperty("intervalFrom")), new STimePoint(relationship.getProperty("intervalTo")));
                         if ((relationship.getEndNode().equals(endNode) | relationship.getStartNode().equals(endNode)) && relationInterval.contains(relationshipIntervalFrom)) {
                             throw new RuntimeException("For relationships with the same content, start node and end node, their effective times do not overlap with each other");
-                        }
-                    } else {
-                        if (++count > 1) {
-                            throw new RuntimeException("Cannot create multiple relationships with the same content, start node and end node in the same statement");
                         }
                     }
                 }
@@ -691,8 +682,6 @@ public class UpdatingQuery {
     }
 
     /**
-     * @param startNodeIntervalToObject    开始节点的结束时间
-     * @param endNodeIntervalToObject      结束节点的结束时间
      * @param startNode                    开始节点
      * @param endNode                      结束节点
      * @param relationshipType             关系的类型
@@ -701,24 +690,19 @@ public class UpdatingQuery {
      */
     @UserFunction("scypher.getIntervalToOfRelationship")
     @Description("Get the end time of relationship.")
-    public Object getIntervalToOfRelationship(@Name("startNodeIntervalTo") Object startNodeIntervalToObject, @Name("endNodeIntervalTo") Object endNodeIntervalToObject, @Name("startNode") Node startNode, @Name("endNode") Node endNode, @Name("relationshipType") String relationshipType, @Name("relationshipIntervalTo") Object relationshipIntervalToObject) {
-        if (startNodeIntervalToObject != null && endNodeIntervalToObject != null && relationshipType != null && relationshipIntervalToObject != null) {
-            STimePoint startNodeIntervalTo = new STimePoint(startNodeIntervalToObject);
-            STimePoint endNodeIntervalTo = new STimePoint(endNodeIntervalToObject);
+    public Object getIntervalToOfRelationship(@Name("startNode") Node startNode, @Name("endNode") Node endNode, @Name("relationshipType") String relationshipType, @Name("relationshipIntervalTo") Object relationshipIntervalToObject) {
+        if (startNode != null && endNode != null && relationshipType != null && relationshipIntervalToObject != null) {
+            STimePoint startNodeIntervalTo = new STimePoint(startNode.getProperty("intervalTo"));
+            STimePoint endNodeIntervalTo = new STimePoint(endNode.getProperty("intervalTo"));
             STimePoint relationshipIntervalTo = new STimePoint(relationshipIntervalToObject);
             // 检查relationshipIntervalTo的合法性
             if (!startNodeIntervalTo.isBefore(relationshipIntervalTo) && !endNodeIntervalTo.isBefore(relationshipIntervalTo)) {
                 List<Relationship> relationships = startNode.getRelationships(RelationshipType.withName(relationshipType)).stream().toList();
-                int count = 0;
                 for (Relationship relationship : relationships) {
                     if (relationship.hasProperty("intervalFrom") && relationship.hasProperty("intervalTo")) {
                         SInterval relationInterval = new SInterval(new STimePoint(relationship.getProperty("intervalFrom")), new STimePoint(relationship.getProperty("intervalTo")));
                         if ((relationship.getEndNode().equals(endNode) | relationship.getStartNode().equals(endNode)) && relationInterval.contains(relationshipIntervalTo)) {
                             throw new RuntimeException("For relationships with the same content, start node and end node, their effective times do not overlap with each other");
-                        }
-                    } else {
-                        if (++count > 1) {
-                            throw new RuntimeException("Cannot create multiple relationships with the same content, start node and end node in the same statement");
                         }
                     }
                 }
