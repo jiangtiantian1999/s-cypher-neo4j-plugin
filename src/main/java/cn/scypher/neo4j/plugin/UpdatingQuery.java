@@ -347,64 +347,74 @@ public class UpdatingQuery {
     }
 
     /**
-     * @param objectNode   对象节点
-     * @param propertyName 属性名
-     * @param timeWindow   时间点/时间区间，用于限定值节点的有效时间。如果没有满足条件的值节点，则将新建一个值节点（属性节点），该值节点的有效时间由timeWindow确定
+     * @param objectNode    对象节点
+     * @param propertyName  属性名
+     * @param propertyValue 属性值（用于确定是否为null）
+     * @param timeWindow    时间点/时间区间，用于限定值节点的有效时间。如果没有满足条件的值节点，则将新建一个值节点（属性节点），该值节点的有效时间由timeWindow确定
      * @return 返回valueNodesToAlter，createPropertyNode，createValueNode
      */
     @UserFunction("scypher.getItemsToSetValue")
     @Description("Get the items to be set when setting the value")
-    public List<Map<String, List>> getItemsToSetValue(@Name("node") Node objectNode, @Name("propertyName") String propertyName, @Name("timeWindow") Object timeWindow) {
+    public List<Map<String, List>> getItemsToSetValue(@Name("node") Node objectNode, @Name("propertyName") String propertyName, @Name("propertyValue") Object propertyValue, @Name("timeWindow") Object timeWindow) {
         if (objectNode != null && propertyName != null && timeWindow != null) {
-            List<Map<String, List>> itemsToSetValue = new ArrayList<>();
-            String timePointType = GlobalVariablesManager.getTimePointType();
-            String timezone = GlobalVariablesManager.getTimezone();
-            STimePoint NOW = new STimePoint("NOW", timePointType, timezone);
-            Node propertyNode = ReadingQuery.getPropertyNode(objectNode, propertyName);
-            if (propertyNode != null) {
-                List<Node> valueNodes = ReadingQuery.getValueNodes(propertyNode, timeWindow);
-                if (valueNodes.size() != 0) {
-                    // 存在符合要求的值节点，直接修改这些值节点的内容
-                    Map<String, List> valueNodesToAlter = new HashMap<>();
-                    valueNodesToAlter.put("valueNodesToAlter", valueNodes);
-                    itemsToSetValue.add(valueNodesToAlter);
-                    return itemsToSetValue;
-                }
-            }
-            // 不存在符合要求的值节点，创建新的值节点（和属性节点）
-            SInterval objectEffectiveTime = new SInterval(new STimePoint(objectNode.getProperty("intervalFrom")), new STimePoint(objectNode.getProperty("intervalTo")));
-            SInterval propertyInterval;
-            if (timeWindow instanceof LocalDate | timeWindow instanceof OffsetTime | timeWindow instanceof LocalTime | timeWindow instanceof ZonedDateTime | timeWindow instanceof LocalDateTime) {
-                propertyInterval = new SInterval(new STimePoint(timeWindow), NOW);
-            } else if (timeWindow instanceof Map) {
-                propertyInterval = new SInterval((Map<String, Object>) timeWindow);
-            } else {
-                throw new RuntimeException("Type mismatch: expected Date, Time, LocalTime, LocalDateTime, DateTime or Interval but was " + timeWindow.getClass().getSimpleName());
-            }
-            if (objectEffectiveTime.contains(propertyInterval)) {
+            if (!propertyName.equals("intervalFrom") && !propertyName.equals("intervalTo")) {
+                List<Map<String, List>> itemsToSetValue = new ArrayList<>();
+                String timePointType = GlobalVariablesManager.getTimePointType();
+                String timezone = GlobalVariablesManager.getTimezone();
+                STimePoint NOW = new STimePoint("NOW", timePointType, timezone);
+                Node propertyNode = ReadingQuery.getPropertyNode(objectNode, propertyName);
                 if (propertyNode != null) {
-                    SInterval propertyEffectiveTime = new SInterval(new STimePoint(propertyNode.getProperty("intervalFrom")), new STimePoint(propertyNode.getProperty("intervalTo")));
-                    if (propertyEffectiveTime.contains(propertyInterval)) {
-                        // 仅创建值节点，返回所连接的属性节点
-                        Map<String, List> CreateValueNode = new HashMap<>();
-                        List<Node> propertyNodeList = new ArrayList<>();
-                        propertyNodeList.add(propertyNode);
-                        CreateValueNode.put("createValueNode", propertyNodeList);
-                        itemsToSetValue.add(CreateValueNode);
-                    } else {
-                        throw new RuntimeException("The effective time of property node must contain the effective time of it's value nodes. Please alter the time window");
+                    List<Node> valueNodes = ReadingQuery.getValueNodes(propertyNode, timeWindow);
+                    if (valueNodes.size() != 0) {
+                        // 存在符合要求的值节点
+                        if (propertyValue != null) {
+                            // 修改这些值节点的内容
+                            Map<String, List> valueNodesToAlter = new HashMap<>();
+                            valueNodesToAlter.put("valueNodesToAlter", valueNodes);
+                            itemsToSetValue.add(valueNodesToAlter);
+                            return itemsToSetValue;
+                        } else {
+                            throw new RuntimeException("The content of value nodes can't be null");
+                        }
                     }
-                } else {
-                    // 创建属性节点和值节点节点，返回属性节点所连接的对象节点
-                    Map<String, List> createPropertyNode = new HashMap<>();
-                    List<Node> objectNodeList = new ArrayList<>();
-                    objectNodeList.add(objectNode);
-                    createPropertyNode.put("createPropertyNode", objectNodeList);
-                    itemsToSetValue.add(createPropertyNode);
                 }
-                return itemsToSetValue;
+                // 不存在符合要求的值节点，创建新的值节点（和属性节点）
+                SInterval objectEffectiveTime = new SInterval(new STimePoint(objectNode.getProperty("intervalFrom")), new STimePoint(objectNode.getProperty("intervalTo")));
+                SInterval propertyInterval;
+                if (timeWindow instanceof LocalDate | timeWindow instanceof OffsetTime | timeWindow instanceof LocalTime | timeWindow instanceof ZonedDateTime | timeWindow instanceof LocalDateTime) {
+                    propertyInterval = new SInterval(new STimePoint(timeWindow), NOW);
+                } else if (timeWindow instanceof Map) {
+                    propertyInterval = new SInterval((Map<String, Object>) timeWindow);
+                } else {
+                    throw new RuntimeException("Type mismatch: expected Date, Time, LocalTime, LocalDateTime, DateTime or Interval but was " + timeWindow.getClass().getSimpleName());
+                }
+                if (objectEffectiveTime.contains(propertyInterval)) {
+                    if (propertyNode != null) {
+                        SInterval propertyEffectiveTime = new SInterval(new STimePoint(propertyNode.getProperty("intervalFrom")), new STimePoint(propertyNode.getProperty("intervalTo")));
+                        if (propertyEffectiveTime.contains(propertyInterval)) {
+                            // 仅创建值节点，返回所连接的属性节点
+                            Map<String, List> CreateValueNode = new HashMap<>();
+                            List<Node> propertyNodeList = new ArrayList<>();
+                            propertyNodeList.add(propertyNode);
+                            CreateValueNode.put("createValueNode", propertyNodeList);
+                            itemsToSetValue.add(CreateValueNode);
+                        } else {
+                            throw new RuntimeException("The effective time of property node must contain the effective time of it's value nodes. Please alter the time window");
+                        }
+                    } else {
+                        // 创建属性节点和值节点节点，返回属性节点所连接的对象节点
+                        Map<String, List> createPropertyNode = new HashMap<>();
+                        List<Node> objectNodeList = new ArrayList<>();
+                        objectNodeList.add(objectNode);
+                        createPropertyNode.put("createPropertyNode", objectNodeList);
+                        itemsToSetValue.add(createPropertyNode);
+                    }
+                    return itemsToSetValue;
+                } else {
+                    throw new RuntimeException("The effective time of object node must contain the effective time of it's value nodes. Please alter the time window");
+                }
             } else {
-                throw new RuntimeException("The effective time of object node must contain the effective time of it's value nodes. Please alter the time window");
+                throw new RuntimeException("User can't set `intervalFrom` or `intervalTo` directly");
             }
         } else {
             throw new RuntimeException("Missing parameter");
@@ -422,70 +432,74 @@ public class UpdatingQuery {
     @Description("Get the items to be set when setting the property")
     public List<Map<String, List>> getItemsToSetProperty(@Name("object") Object object, @Name("propertyName") String propertyName, @Name("propertyValue") Object propertyValue, @Name("operateTime") Object operateTimeObject) {
         if (object != null && propertyName != null) {
-            List<Map<String, List>> itemsToSetProperty = new ArrayList<>();
-            Map<String, List> itemToSetProperty = new HashMap<>();
-            String timePointType = GlobalVariablesManager.getTimePointType();
-            String timezone = GlobalVariablesManager.getTimezone();
-            STimePoint NOW = new STimePoint("NOW", timePointType, timezone);
-            STimePoint operateTime = new STimePoint(operateTimeObject);
-            if (object instanceof Node objectNode) {
-                SInterval objectEffectiveTime = new SInterval(new STimePoint(objectNode.getProperty("intervalFrom")), new STimePoint(objectNode.getProperty("intervalTo")));
-                if (objectEffectiveTime.getIntervalTo().getSystemTimePoint().equals(NOW.getSystemTimePoint())) {
-                    if (objectEffectiveTime.contains(operateTime)) {
-                        // 设置实体的某个属性
-                        Node propertyNode = ReadingQuery.getPropertyNode(objectNode, propertyName);
-                        if (propertyNode != null) {
-                            SInterval propertyEffectiveTime = new SInterval(new STimePoint(propertyNode.getProperty("intervalFrom")), new STimePoint(propertyNode.getProperty("intervalTo")));
-                            if (propertyEffectiveTime.getIntervalTo().getSystemTimePoint().equals(NOW.getSystemTimePoint())) {
-                                if (propertyEffectiveTime.contains(operateTime)) {
-                                    Node valueNode = getValueNode(propertyNode, operateTimeObject);
-                                    if (valueNode != null) {
-                                        SInterval valueEffectiveTime = new SInterval(new STimePoint(valueNode.getProperty("intervalFrom")), new STimePoint(valueNode.getProperty("intervalTo")));
-                                        if (valueEffectiveTime.getIntervalTo().getSystemTimePoint().equals(NOW.getSystemTimePoint())) {
-                                            // 物理删除已有值节点，staleValueNode返回待物理删除的值节点
-                                            Map<String, List> staleValueNode = new HashMap<>();
-                                            List<Node> valueNodeList = new ArrayList<>();
-                                            valueNodeList.add(valueNode);
-                                            staleValueNode.put("staleValueNode", valueNodeList);
-                                            itemsToSetProperty.add(staleValueNode);
-                                        } else {
-                                            throw new RuntimeException("The operate time fall in the effective time of a historical value node. Please alter the operate time");
+            if (!propertyName.equals("intervalFrom") && !propertyName.equals("intervalTo")) {
+                List<Map<String, List>> itemsToSetProperty = new ArrayList<>();
+                Map<String, List> itemToSetProperty = new HashMap<>();
+                String timePointType = GlobalVariablesManager.getTimePointType();
+                String timezone = GlobalVariablesManager.getTimezone();
+                STimePoint NOW = new STimePoint("NOW", timePointType, timezone);
+                STimePoint operateTime = new STimePoint(operateTimeObject);
+                if (object instanceof Node objectNode) {
+                    SInterval objectEffectiveTime = new SInterval(new STimePoint(objectNode.getProperty("intervalFrom")), new STimePoint(objectNode.getProperty("intervalTo")));
+                    if (objectEffectiveTime.getIntervalTo().getSystemTimePoint().equals(NOW.getSystemTimePoint())) {
+                        if (objectEffectiveTime.contains(operateTime)) {
+                            // 设置实体的某个属性
+                            Node propertyNode = ReadingQuery.getPropertyNode(objectNode, propertyName);
+                            if (propertyNode != null) {
+                                SInterval propertyEffectiveTime = new SInterval(new STimePoint(propertyNode.getProperty("intervalFrom")), new STimePoint(propertyNode.getProperty("intervalTo")));
+                                if (propertyEffectiveTime.getIntervalTo().getSystemTimePoint().equals(NOW.getSystemTimePoint())) {
+                                    if (propertyEffectiveTime.contains(operateTime)) {
+                                        Node valueNode = getValueNode(propertyNode, operateTimeObject);
+                                        if (valueNode != null) {
+                                            SInterval valueEffectiveTime = new SInterval(new STimePoint(valueNode.getProperty("intervalFrom")), new STimePoint(valueNode.getProperty("intervalTo")));
+                                            if (valueEffectiveTime.getIntervalTo().getSystemTimePoint().equals(NOW.getSystemTimePoint())) {
+                                                // 物理删除已有值节点，staleValueNode返回待物理删除的值节点
+                                                Map<String, List> staleValueNode = new HashMap<>();
+                                                List<Node> valueNodeList = new ArrayList<>();
+                                                valueNodeList.add(valueNode);
+                                                staleValueNode.put("staleValueNode", valueNodeList);
+                                                itemsToSetProperty.add(staleValueNode);
+                                            } else {
+                                                throw new RuntimeException("The operate time fall in the effective time of a historical value node. Please alter the operate time");
+                                            }
                                         }
-                                    }
-                                    if (propertyValue != null) {
-                                        // 仅创建值节点，createValueNode返回待创建的值节点所连接的属性节点
-                                        List<Node> propertyNodeList = new ArrayList<>();
-                                        propertyNodeList.add(propertyNode);
-                                        itemToSetProperty.put("createValueNode", propertyNodeList);
+                                        if (propertyValue != null) {
+                                            // 仅创建值节点，createValueNode返回待创建的值节点所连接的属性节点
+                                            List<Node> propertyNodeList = new ArrayList<>();
+                                            propertyNodeList.add(propertyNode);
+                                            itemToSetProperty.put("createValueNode", propertyNodeList);
+                                        }
+                                    } else {
+                                        throw new RuntimeException("The effective time of property node must contain the effective time of it's value nodes. Please alter the operate time");
                                     }
                                 } else {
-                                    throw new RuntimeException("The effective time of property node must contain the effective time of it's value nodes. Please alter the operate time");
+                                    throw new RuntimeException("Can't add value nodes for historical property nodes");
                                 }
                             } else {
-                                throw new RuntimeException("Can't add value nodes for historical property nodes");
+                                // 创建属性节点和值节点，createPropertyNode返回待创建的属性节点所连接的对象节点
+                                List<Node> objectNodeList = new ArrayList<>();
+                                objectNodeList.add(objectNode);
+                                itemToSetProperty.put("createPropertyNode", objectNodeList);
                             }
                         } else {
-                            // 创建属性节点和值节点，createPropertyNode返回待创建的属性节点所连接的对象节点
-                            List<Node> objectNodeList = new ArrayList<>();
-                            objectNodeList.add(objectNode);
-                            itemToSetProperty.put("createPropertyNode", objectNodeList);
+                            throw new RuntimeException("The effective time of object node must contain the effective time of it's value nodes. Please alter the operate time");
                         }
                     } else {
-                        throw new RuntimeException("The effective time of object node must contain the effective time of it's value nodes. Please alter the operate time");
+                        throw new RuntimeException("Can't set properties for historical nodes");
                     }
+                } else if (object instanceof Relationship relationship) {
+                    // 设置关系的某个属性，setRelationshipProperty返回待修改的关系
+                    List<Relationship> relationshipList = new ArrayList<>();
+                    relationshipList.add(relationship);
+                    itemToSetProperty.put("setRelationshipProperty", relationshipList);
                 } else {
-                    throw new RuntimeException("Can't set properties for historical nodes");
+                    throw new RuntimeException("Type mismatch: expected Node or Relationship but was " + object.getClass().getSimpleName());
                 }
-            } else if (object instanceof Relationship relationship) {
-                // 设置关系的某个属性，setRelationshipProperty返回待修改的关系
-                List<Relationship> relationshipList = new ArrayList<>();
-                relationshipList.add(relationship);
-                itemToSetProperty.put("setRelationshipProperty", relationshipList);
+                itemsToSetProperty.add(itemToSetProperty);
+                return itemsToSetProperty;
             } else {
-                throw new RuntimeException("Type mismatch: expected Node or Relationship but was " + object.getClass().getSimpleName());
+                throw new RuntimeException("User can't set `intervalFrom` or `intervalTo` directly");
             }
-            itemsToSetProperty.add(itemToSetProperty);
-            return itemsToSetProperty;
         } else {
             throw new RuntimeException("Missing parameter");
         }
@@ -544,38 +558,42 @@ public class UpdatingQuery {
                         List<Map<String, Object>> createValueNodeList = new ArrayList<>();
                         List<Map<String, Object>> createPropertyNodeList = new ArrayList<>();
                         for (Map.Entry<String, Object> entry : propertyMap.entrySet()) {
-                            // 设置实体的某个属性
-                            Node propertyNode = ReadingQuery.getPropertyNode(objectNode, entry.getKey());
-                            if (propertyNode != null) {
-                                SInterval propertyEffectiveTime = new SInterval(new STimePoint(propertyNode.getProperty("intervalFrom")), new STimePoint(propertyNode.getProperty("intervalTo")));
-                                if (propertyEffectiveTime.getIntervalTo().getSystemTimePoint().equals(NOW.getSystemTimePoint())) {
-                                    if (propertyEffectiveTime.contains(operateTime)) {
-                                        Node valueNode = getValueNode(propertyNode, operateTimeObject);
-                                        if (valueNode != null) {
-                                            SInterval valueEffectiveTime = new SInterval(new STimePoint(valueNode.getProperty("intervalFrom")), new STimePoint(valueNode.getProperty("intervalTo")));
-                                            if (!valueEffectiveTime.getIntervalTo().getSystemTimePoint().equals(NOW.getSystemTimePoint())) {
-                                                throw new RuntimeException("The operate time fall in the effective time of a historical value node. Please alter the operate time");
+                            if (!entry.getKey().equals("intervalFrom") && !entry.getKey().equals("intervalTo")) {
+                                // 设置实体的某个属性
+                                Node propertyNode = ReadingQuery.getPropertyNode(objectNode, entry.getKey());
+                                if (propertyNode != null) {
+                                    SInterval propertyEffectiveTime = new SInterval(new STimePoint(propertyNode.getProperty("intervalFrom")), new STimePoint(propertyNode.getProperty("intervalTo")));
+                                    if (propertyEffectiveTime.getIntervalTo().getSystemTimePoint().equals(NOW.getSystemTimePoint())) {
+                                        if (propertyEffectiveTime.contains(operateTime)) {
+                                            Node valueNode = getValueNode(propertyNode, operateTimeObject);
+                                            if (valueNode != null) {
+                                                SInterval valueEffectiveTime = new SInterval(new STimePoint(valueNode.getProperty("intervalFrom")), new STimePoint(valueNode.getProperty("intervalTo")));
+                                                if (!valueEffectiveTime.getIntervalTo().getSystemTimePoint().equals(NOW.getSystemTimePoint())) {
+                                                    throw new RuntimeException("The operate time fall in the effective time of a historical value node. Please alter the operate time");
+                                                }
                                             }
-                                        }
-                                        if (entry.getValue() != null) {
-                                            // 仅创建值节点，createValueNodes返回属性节点的属性名和待创建的值节点的值
-                                            Map<String, Object> createValueNode = new HashMap<>();
-                                            createValueNode.put("propertyName", entry.getKey());
-                                            createValueNode.put("propertyValue", entry.getValue());
-                                            createValueNodeList.add(createValueNode);
+                                            if (entry.getValue() != null) {
+                                                // 仅创建值节点，createValueNodes返回属性节点的属性名和待创建的值节点的值
+                                                Map<String, Object> createValueNode = new HashMap<>();
+                                                createValueNode.put("propertyName", entry.getKey());
+                                                createValueNode.put("propertyValue", entry.getValue());
+                                                createValueNodeList.add(createValueNode);
+                                            }
+                                        } else {
+                                            throw new RuntimeException("The effective time of property node must contain the effective time of it's value nodes. Please alter the operate time");
                                         }
                                     } else {
-                                        throw new RuntimeException("The effective time of property node must contain the effective time of it's value nodes. Please alter the operate time");
+                                        throw new RuntimeException("Can't add value nodes for historical property nodes");
                                     }
                                 } else {
-                                    throw new RuntimeException("Can't add value nodes for historical property nodes");
+                                    // 创建属性节点和值节点，createPropertyNodes返回属性节点的属性名和值节点的值
+                                    Map<String, Object> createPropertyNode = new HashMap<>();
+                                    createPropertyNode.put("propertyName", entry.getKey());
+                                    createPropertyNode.put("propertyValue", entry.getValue());
+                                    createPropertyNodeList.add(createPropertyNode);
                                 }
                             } else {
-                                // 创建属性节点和值节点，createPropertyNodes返回属性节点的属性名和值节点的值
-                                Map<String, Object> createPropertyNode = new HashMap<>();
-                                createPropertyNode.put("propertyName", entry.getKey());
-                                createPropertyNode.put("propertyValue", entry.getValue());
-                                createPropertyNodeList.add(createPropertyNode);
+                                throw new RuntimeException("User can't set `intervalFrom` or `intervalTo` directly");
                             }
                         }
                         if (createValueNodeList.size() > 0) {
@@ -592,10 +610,19 @@ public class UpdatingQuery {
                 }
             } else if (object instanceof Relationship relationship) {
                 // 设置关系的一组属性
-                // setRelationshipProperties返回关系
-                List<Relationship> relationshipList = new ArrayList<>();
-                relationshipList.add(relationship);
-                itemToSetProperties.put("setRelationshipProperties", relationshipList);
+                if (isAdd) {
+                    // setRelationshipProperties返回关系
+                    List<Relationship> relationshipList = new ArrayList<>();
+                    relationshipList.add(relationship);
+                    itemToSetProperties.put("setRelationshipProperties", relationshipList);
+                } else {
+                    // setRelationshipProperties返回待设置的属性map，将intervalFrom和intervalTo也添加到propertyMap
+                    propertyMap.put("intervalFrom", relationship.getProperty("intervalFrom"));
+                    propertyMap.put("intervalTo", relationship.getProperty("intervalTo"));
+                    List<Map<String, Object>> propertyMapList = new ArrayList<>();
+                    propertyMapList.add(propertyMap);
+                    itemToSetProperties.put("setRelationshipProperties", propertyMapList);
+                }
             } else {
                 throw new RuntimeException("Type mismatch: expected Node or Relationship but was " + object.getClass().getSimpleName());
             }
@@ -608,7 +635,7 @@ public class UpdatingQuery {
     }
 
     /**
-     * @param superiorNode    所属对象节点/属性节点
+     * @param superiorNode            所属对象节点/属性节点
      * @param subordinateIntervalFrom 待设置的属性节点/值节点的开始时间
      * @return 如果属性节点/值节点的开始时间满足约束，则返回subordinateIntervalFrom；反之，则报错。
      */
