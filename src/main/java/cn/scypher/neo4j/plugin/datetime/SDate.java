@@ -90,7 +90,7 @@ public class SDate {
             Calendar calendar = Calendar.getInstance();
             int[] weekdays = {Calendar.MONDAY, Calendar.TUESDAY, Calendar.WEDNESDAY, Calendar.THURSDAY, Calendar.FRIDAY, Calendar.SATURDAY, Calendar.SUNDAY};
             calendar.setWeekDate(year, week, weekdays[dayOfWeek - 1]);
-            return LocalDate.ofInstant(calendar.toInstant(), ZoneId.of("Z"));
+            return LocalDate.of(calendar.get(Calendar.YEAR), calendar.get(Calendar.MONTH), calendar.get(Calendar.DAY_OF_MONTH));
         } else if (dateMap.containsKey("quarter")) {
             int quarter = dateMap.get("quarter").intValue();
             int dayOfQuarter = 1;

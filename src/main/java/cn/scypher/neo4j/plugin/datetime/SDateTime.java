@@ -8,9 +8,10 @@ public class SDateTime {
     private final ZonedDateTime datetime;
 
     public SDateTime(String timezone) {
-        if (timezone == null)
+        if (timezone == null) {
             timezone = "Z";
-        this.datetime = ZonedDateTime.now(ZoneOffset.of(timezone));
+        }
+        this.datetime = ZonedDateTime.now(ZoneId.of(timezone));
     }
 
     public SDateTime(ZonedDateTime datetime) {
@@ -22,7 +23,7 @@ public class SDateTime {
             timezone = "Z";
         }
         if (datetimeString.equalsIgnoreCase("NOW")) {
-            this.datetime = ZonedDateTime.of(LocalDateTime.MAX, ZoneOffset.of(timezone)).withYear(9999);
+            this.datetime = ZonedDateTime.of(LocalDateTime.MAX, ZoneId.of(timezone)).withYear(9999);
         } else {
             String[] datetimeStringList = datetimeString.split("T");
             SDate date = new SDate(datetimeStringList[0]);
@@ -30,7 +31,7 @@ public class SDateTime {
                 STime time = new STime(datetimeStringList[1], timezone);
                 this.datetime = ZonedDateTime.of(date.getDate(), time.getTime().toLocalTime(), time.getTime().getOffset());
             } else {
-                this.datetime = ZonedDateTime.of(date.getDate(), LocalTime.MIN, ZoneOffset.of(timezone));
+                this.datetime = ZonedDateTime.of(date.getDate(), LocalTime.MIN, ZoneId.of(timezone));
             }
         }
     }

@@ -10,9 +10,10 @@ public class STime {
     private final OffsetTime time;
 
     public STime(String timezone) {
-        if (timezone == null)
+        if (timezone == null) {
             timezone = "Z";
-        this.time = OffsetTime.now(ZoneOffset.of(timezone));
+        }
+        this.time = OffsetTime.now(ZoneId.of(timezone));
     }
 
     public STime(OffsetTime time) {
@@ -51,7 +52,6 @@ public class STime {
                 throw new RuntimeException("The combination of the time components is incorrect.");
             }
         }
-
     }
 
     public STime(Map<String, Object> timeMap, String timezone) {

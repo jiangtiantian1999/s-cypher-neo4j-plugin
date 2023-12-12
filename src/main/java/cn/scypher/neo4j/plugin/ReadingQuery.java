@@ -2,16 +2,19 @@ package cn.scypher.neo4j.plugin;
 
 import cn.scypher.neo4j.plugin.datetime.SInterval;
 import cn.scypher.neo4j.plugin.datetime.STimePoint;
+import org.bitbucket.inkytonik.kiama.output.PrettyUnaryExpression;
 import org.neo4j.graphdb.*;
 import org.neo4j.procedure.Description;
 import org.neo4j.procedure.Name;
 import org.neo4j.procedure.UserFunction;
 
+import java.sql.Timestamp;
 import java.time.*;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Map;
+import java.time.temporal.ChronoUnit;
+import java.time.temporal.TemporalAmount;
+import java.time.temporal.TemporalField;
+import java.time.temporal.TemporalUnit;
+import java.util.*;
 
 public class ReadingQuery {
 
@@ -62,6 +65,82 @@ public class ReadingQuery {
         return valueNodeList;
     }
 
+    public int getComponentOfTimePoint(Date date, String component) {
+        Calendar dateCalendar = Calendar.getInstance();
+        dateCalendar.setTime(date);
+        return switch (component) {
+            case "year", "weekYear" -> dateCalendar.get(Calendar.YEAR);
+            case "quarter" -> (dateCalendar.get(Calendar.MONTH)) / 4 + 1;
+            case "month" -> dateCalendar.get(Calendar.MONTH) + 1;
+            case "week" -> dateCalendar.get(Calendar.WEEK_OF_YEAR);
+            case "dayOfQuarter" -> {
+                int month = dateCalendar.get(Calendar.MONTH) + 1;
+                if (month % 3 == 1) {
+                    yield dateCalendar.get(Calendar.DAY_OF_MONTH);
+                } else if (month % 3 == 2) {
+                    Calendar calendar = Calendar.getInstance();
+                    calendar.set(dateCalendar.get(Calendar.YEAR), dateCalendar.get(Calendar.MONTH) - 1, 1);
+                    yield calendar.getActualMaximum(Calendar.DAY_OF_MONTH) + dateCalendar.get(Calendar.DAY_OF_MONTH);
+                } else {
+                    Calendar calendar1 = Calendar.getInstance();
+                    calendar1.set(dateCalendar.get(Calendar.YEAR), dateCalendar.get(Calendar.MONTH) - 2, 1);
+                    Calendar calendar2 = Calendar.getInstance();
+                    calendar2.set(dateCalendar.get(Calendar.YEAR), dateCalendar.get(Calendar.MONTH) - 1, 1);
+                    yield calendar1.getActualMaximum(Calendar.DAY_OF_MONTH) + calendar2.getActualMaximum(Calendar.DAY_OF_MONTH) + dateCalendar.get(Calendar.DAY_OF_MONTH);
+                }
+            }
+            case "quarterDay" -> {
+                int quarter = (dateCalendar.get(Calendar.MONTH)) / 4 + 1;
+                if (quarter == 1) {
+                    Calendar calendar = Calendar.getInstance();
+                    calendar.set(dateCalendar.get(Calendar.YEAR), Calendar.FEBRUARY, 1);
+                    int febDays = calendar.getActualMaximum(Calendar.DAY_OF_MONTH);
+                    yield febDays + 62;
+                } else if (quarter == 2) {
+                    yield 91;
+                } else {
+                    yield 92;
+                }
+            }
+            case "day" -> dateCalendar.get(Calendar.DAY_OF_MONTH);
+            case "ordinalDay" -> dateCalendar.get(Calendar.DAY_OF_YEAR);
+            case "dayOfWeek", "weekDay" -> {
+                int[] weekdays = {7, 1, 2, 3, 4, 5, 6};
+                yield weekdays[dateCalendar.get(Calendar.DAY_OF_WEEK) - 1];
+            }
+            default -> throw new RuntimeException("No such field: " + component);
+        };
+    }
+
+    public int getComponentOfTimePoint(LocalTime localTime, String component) {
+        return switch (component) {
+            case "hour" -> localTime.getHour();
+            case "minute" -> localTime.getMinute();
+            case "second" -> localTime.getSecond();
+            case "millisecond" -> localTime.getNano() / 1000000;
+            case "microsecond" -> localTime.getNano() / 1000;
+            case "nanosecond" -> localTime.getNano();
+            default -> throw new RuntimeException("No such field: " + component);
+        };
+    }
+
+    public String getComponentOfTimePoint(ZoneOffset zoneOffset, String component) {
+        return switch (component) {
+            case "timezone" -> zoneOffset.getId();
+            case "offset" -> {
+                String sign = "+";
+                int second = zoneOffset.getTotalSeconds();
+                if (second < 0) {
+                    sign = "-";
+                    second = -second;
+                }
+                yield sign + String.format("%02d%02d", second / 3600, (second % 3600) / 60);
+            }
+            case "offsetMinutes" -> String.valueOf(zoneOffset.getTotalSeconds() / 60);
+            case "offsetSeconds" -> String.valueOf(zoneOffset.getTotalSeconds());
+            default -> throw new RuntimeException("No such field: " + component);
+        };
+    }
 
     /**
      * @param object       对象节点/边/Map
@@ -108,6 +187,47 @@ public class ReadingQuery {
             } else if (object instanceof Map) {
                 Map<String, Object> objectMap = (Map<String, Object>) object;
                 return objectMap.getOrDefault(propertyName, null);
+            } else if (object instanceof TemporalAmount duration) {
+                return switch (propertyName) {
+                    case "years" -> duration.get(ChronoUnit.YEARS);
+                    case "quarters" -> (int) duration.get(ChronoUnit.MONTHS) / 3;
+                    case "months" -> duration.get(ChronoUnit.MONTHS);
+                    case "weeks" -> duration.get(ChronoUnit.WEEKS);
+                    case "days" -> duration.get(ChronoUnit.DAYS);
+                    case "hours" -> duration.get(ChronoUnit.HOURS);
+                    case "minutes" -> duration.get(ChronoUnit.MINUTES);
+                    case "seconds" -> duration.get(ChronoUnit.SECONDS);
+                    case "milliseconds" -> duration.get(ChronoUnit.MILLIS);
+                    case "microseconds" -> duration.get(ChronoUnit.MICROS);
+                    case "nanoseconds" -> duration.get(ChronoUnit.NANOS);
+                    default -> throw new RuntimeException("No such field: " + propertyName);
+                };
+            } else if (object instanceof Date date) {
+                return getComponentOfTimePoint(date, propertyName);
+            } else if (object instanceof OffsetTime offsetTime) {
+                if (propertyName.equals("timezone") | propertyName.equals("offset") | propertyName.equals("offsetMinutes") | propertyName.equals("offsetSeconds")) {
+                    return getComponentOfTimePoint(offsetTime.getOffset(), propertyName);
+                } else {
+                    return getComponentOfTimePoint(offsetTime.toLocalTime(), propertyName);
+                }
+            } else if (object instanceof LocalTime localTime) {
+                return getComponentOfTimePoint(localTime, propertyName);
+            } else if (object instanceof LocalDateTime localDateTime) {
+                if (propertyName.equals("hour") | propertyName.equals("minute") | propertyName.equals("second") | propertyName.equals("millisecond") |
+                        propertyName.equals("microsecond") | propertyName.equals("nanosecond")) {
+                    return getComponentOfTimePoint(localDateTime.toLocalTime(), propertyName);
+                } else {
+                    return getComponentOfTimePoint(Date.from(Timestamp.valueOf(localDateTime.toLocalDate().atStartOfDay()).toInstant()), propertyName);
+                }
+            } else if (object instanceof ZonedDateTime zonedDateTime) {
+                if (propertyName.equals("hour") | propertyName.equals("minute") | propertyName.equals("second") | propertyName.equals("millisecond") |
+                        propertyName.equals("microsecond") | propertyName.equals("nanosecond")) {
+                    return getComponentOfTimePoint(zonedDateTime.toLocalTime(), propertyName);
+                } else if (propertyName.equals("timezone") | propertyName.equals("offset") | propertyName.equals("offsetMinutes") | propertyName.equals("offsetSeconds")) {
+                    return getComponentOfTimePoint(zonedDateTime.getOffset(), propertyName);
+                } else {
+                    return getComponentOfTimePoint(Date.from(Timestamp.valueOf(zonedDateTime.toLocalDate().atStartOfDay()).toInstant()), propertyName);
+                }
             } else {
                 throw new RuntimeException("Type mismatch: expected Map, Node, Relationship, Point, Duration, Date, Time, LocalTime, LocalDateTime or DateTime but was " + object.getClass().getSimpleName());
             }

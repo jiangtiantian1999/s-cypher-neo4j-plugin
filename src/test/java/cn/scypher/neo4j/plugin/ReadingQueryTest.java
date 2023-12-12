@@ -11,6 +11,11 @@ import org.neo4j.driver.Session;
 import org.neo4j.harness.Neo4j;
 import org.neo4j.harness.Neo4jBuilders;
 
+import java.time.OffsetTime;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
+import java.time.temporal.ChronoField;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
@@ -50,6 +55,14 @@ public class ReadingQueryTest {
         }
         records = this.session.run("MATCH (n:Person)" +
                 "RETURN scypher.getPropertyValue(n, 'name', scypher.interval('2010','2022'))").list();
+        for (Record record : records) {
+            System.out.println(record);
+        }
+        records = this.session.run("RETURN scypher.getPropertyValue(duration({months:10}), 'quarters', NULL)").list();
+        for (Record record : records) {
+            System.out.println(record);
+        }
+        records = this.session.run("RETURN scypher.getPropertyValue(scypher.timePoint('NOW'), 'timezone', NULL)").list();
         for (Record record : records) {
             System.out.println(record);
         }
