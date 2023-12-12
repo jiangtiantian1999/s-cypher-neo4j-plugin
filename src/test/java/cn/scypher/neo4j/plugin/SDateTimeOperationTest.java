@@ -1,6 +1,5 @@
 package cn.scypher.neo4j.plugin;
 
-import cn.scypher.neo4j.plugin.datetime.SDate;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -51,6 +50,8 @@ public class SDateTimeOperationTest {
         record = this.session.run("RETURN scypher.timePoint('2015Q260')").single();
         System.out.println(record);
         record = this.session.run("RETURN scypher.timePoint('2015W302')").single();
+        System.out.println(record);
+        record = this.session.run("RETURN scypher.timePoint('2015W30-2')").single();
         System.out.println(record);
         record = this.session.run("RETURN scypher.timePoint('2015W01-1')").single();
         System.out.println(record);

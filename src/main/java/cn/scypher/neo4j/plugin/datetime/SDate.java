@@ -1,6 +1,5 @@
 package cn.scypher.neo4j.plugin.datetime;
 
-import javax.swing.*;
 import java.time.*;
 import java.util.*;
 import java.util.regex.Matcher;
@@ -90,7 +89,7 @@ public class SDate {
             Calendar calendar = Calendar.getInstance();
             int[] weekdays = {Calendar.MONDAY, Calendar.TUESDAY, Calendar.WEDNESDAY, Calendar.THURSDAY, Calendar.FRIDAY, Calendar.SATURDAY, Calendar.SUNDAY};
             calendar.setWeekDate(year, week, weekdays[dayOfWeek - 1]);
-            return LocalDate.of(calendar.get(Calendar.YEAR), calendar.get(Calendar.MONTH), calendar.get(Calendar.DAY_OF_MONTH));
+            return LocalDate.of(calendar.get(Calendar.YEAR), calendar.get(Calendar.MONTH) + 1, calendar.get(Calendar.DAY_OF_MONTH));
         } else if (dateMap.containsKey("quarter")) {
             int quarter = dateMap.get("quarter").intValue();
             int dayOfQuarter = 1;

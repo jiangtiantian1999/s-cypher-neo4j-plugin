@@ -6,7 +6,6 @@ import org.neo4j.graphdb.*;
 import org.neo4j.procedure.Description;
 import org.neo4j.procedure.Name;
 import org.neo4j.procedure.UserFunction;
-import scala.concurrent.impl.FutureConvertersImpl;
 
 import java.time.*;
 import java.util.*;
