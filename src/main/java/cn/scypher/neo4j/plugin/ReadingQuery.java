@@ -26,6 +26,11 @@ public class ReadingQuery {
         return null;
     }
 
+    /**
+     * @param propertyNode 属性节点
+     * @param timeWindow   时间点/时间区间
+     * @return 返回在时间窗口上有效的所有值节点
+     */
     public static List<Node> getValueNodes(Node propertyNode, @Name("timeWindow") Object timeWindow) {
         ResourceIterable<Relationship> relationships = propertyNode.getRelationships(Direction.OUTGOING, RelationshipType.withName("PROPERTY_VALUE"));
         List<Node> valueNodeList = new ArrayList<>();
@@ -50,9 +55,9 @@ public class ReadingQuery {
                 valueNodeList.add(valueNode);
             } else if (valueNodeTimePoint != null && valueNodeEffectiveTime.contains(valueNodeTimePoint)) {
                 valueNodeList.add(valueNode);
-            } else if (valueNodeInterval != null && valueNodeEffectiveTime.contains(valueNodeInterval)) {
+            } else if (valueNodeInterval != null && valueNodeEffectiveTime.overlaps(valueNodeInterval)) {
                 valueNodeList.add(valueNode);
-            } else if (scopeInterval != null && valueNodeEffectiveTime.contains(scopeInterval)) {
+            } else if (scopeInterval != null && valueNodeEffectiveTime.overlaps(scopeInterval)) {
                 // 时序查询子句和delete子句均优先使用scope定义的有效时间
                 valueNodeList.add(valueNode);
             } else if (snapshotTimePoint != null && valueNodeEffectiveTime.contains(snapshotTimePoint)) {

@@ -364,6 +364,7 @@ public class UpdatingQuery {
                 Node propertyNode = ReadingQuery.getPropertyNode(objectNode, propertyName);
                 if (propertyNode != null) {
                     List<Node> valueNodes = ReadingQuery.getValueNodes(propertyNode, timeWindow);
+                    System.out.println(valueNodes);
                     if (valueNodes.size() != 0) {
                         // 存在符合要求的值节点
                         if (propertyValue != null) {
