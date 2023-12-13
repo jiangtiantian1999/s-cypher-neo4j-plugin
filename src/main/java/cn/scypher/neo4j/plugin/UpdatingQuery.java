@@ -586,6 +586,9 @@ public class UpdatingQuery {
                                     Map<String, Object> createPropertyNode = new HashMap<>();
                                     createPropertyNode.put("propertyName", entry.getKey());
                                     createPropertyNode.put("propertyValue", entry.getValue());
+                                    List<Node> objectNodeList = new ArrayList<>();
+                                    objectNodeList.add(objectNode);
+                                    createPropertyNode.put("objectNode", objectNodeList);
                                     createPropertyNodeList.add(createPropertyNode);
                                 }
                             } else {
@@ -622,6 +625,7 @@ public class UpdatingQuery {
             } else {
                 throw new RuntimeException("Type mismatch: expected Node or Relationship but was " + object.getClass().getSimpleName());
             }
+            System.out.println(itemToSetProperties);
             itemsToSetProperties.add(itemToSetProperties);
             return itemsToSetProperties;
         } else {
