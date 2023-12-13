@@ -364,7 +364,6 @@ public class UpdatingQuery {
                 Node propertyNode = ReadingQuery.getPropertyNode(objectNode, propertyName);
                 if (propertyNode != null) {
                     List<Node> valueNodes = ReadingQuery.getValueNodes(propertyNode, timeWindow);
-                    System.out.println(valueNodes);
                     if (valueNodes.size() != 0) {
                         // 存在符合要求的值节点
                         if (propertyValue != null) {
@@ -555,7 +554,7 @@ public class UpdatingQuery {
                             itemToSetProperties.put("staleNodes", nodeList);
                         }
                         // 创建新的值节点（和属性节点）
-                        List<Map<String, Object>> createValueNodeList = new ArrayList<>();
+                        List<Node> createValueNodeList = new ArrayList<>();
                         List<Map<String, Object>> createPropertyNodeList = new ArrayList<>();
                         for (Map.Entry<String, Object> entry : propertyMap.entrySet()) {
                             if (!entry.getKey().equals("intervalFrom") && !entry.getKey().equals("intervalTo")) {
@@ -573,11 +572,8 @@ public class UpdatingQuery {
                                                 }
                                             }
                                             if (entry.getValue() != null) {
-                                                // 仅创建值节点，createValueNodes返回属性节点的属性名和待创建的值节点的值
-                                                Map<String, Object> createValueNode = new HashMap<>();
-                                                createValueNode.put("propertyName", entry.getKey());
-                                                createValueNode.put("propertyValue", entry.getValue());
-                                                createValueNodeList.add(createValueNode);
+                                                // 仅创建值节点，createValueNodes返回相连属性节点
+                                                createValueNodeList.add(propertyNode);
                                             }
                                         } else {
                                             throw new RuntimeException("The effective time of property node must contain the effective time of it's value nodes. Please alter the operate time");

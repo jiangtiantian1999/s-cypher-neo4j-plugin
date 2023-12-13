@@ -181,11 +181,10 @@ public class UpdatingQueryTest {
 
         this.session.run("MATCH (n:Person)" +
                 "FOREACH(item in scypher.getItemsToSetProperties(n, {name: 'John'}, scypher.operateTime(), true) | " +
-                "FOREACH (t in item.createPropertyNodes | CREATE (n)-[:OBJECT_PROPERTY]->(:Property{content:t.propertyName, intervalFrom:scypher.operateTime(), intervalTo:scypher.timePoint('NOW')})" +
-                "-[:PROPERTY_VALUE]->(:Value{content:t.propertyValue, intervalFrom:scypher.operateTime(), intervalTo:scypher.timePoint('NOW')}))" +
-                "FOREACH (t in item.createValueNodes | MERGE (n)-[:OBJECT_PROPERTY]->(:Property{content:t.propertyName})" +
-                "-[:PROPERTY_VALUE]->(:Value{content:t.propertyValue, intervalFrom:scypher.operateTime(), intervalTo:scypher.timePoint('NOW')}))" +
+                "FOREACH (t in item.createPropertyNodes | CREATE (n)-[:OBJECT_PROPERTY]->(:Property{content:t.propertyName, intervalFrom: scypher.operateTime(), intervalTo:scypher.timePoint('NOW')})" +
+                "-[:PROPERTY_VALUE]->(:Value{content:t.propertyValue, intervalFrom:scypher.operateTime(), intervalTo: scypher.timePoint('NOW')}))" +
                 "FOREACH (t in item.staleNodes | SET t.intervalTo = scypher.operateTime())" +
+                "FOREACH (t in item.createValueNodes | MERGE (t)-[:PROPERTY_VALUE]->(:Value{content:scypher.getPropertyValue({name: 'John'},t.content,NULL), intervalFrom:scypher.operateTime(), intervalTo: scypher.timePoint('NOW')}))" +
                 "FOREACH (t in item.setRelationshipProperties | SET n = t)" +
                 ")");
         records = this.session.run("MATCH (n:Person)-->(p:Property)-->(v:Value)" +
