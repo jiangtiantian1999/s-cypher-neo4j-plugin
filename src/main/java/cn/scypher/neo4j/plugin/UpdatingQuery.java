@@ -252,7 +252,7 @@ public class UpdatingQuery {
             // 修改对象节点/属性节点/值节点的有效时间
             if (objectInfo.get("object") instanceof Node objectNode) {
                 SInterval objectEffectiveTime;
-                if (objectInfo.containsKey("effectiveTime")) {
+                if (objectInfo.containsKey("effectiveTime") && objectInfo.get("effectiveTime") != null) {
                     objectEffectiveTime = new SInterval((Map<String, Object>) objectInfo.get("effectiveTime"));
                     // 检查对象节点的有效时间是否满足约束
                     ResourceIterable<Relationship> relationships = objectNode.getRelationships();
@@ -277,7 +277,7 @@ public class UpdatingQuery {
                     Node propertyNode = ReadingQuery.getPropertyNode(objectNode, (String) propertyInfo.get("propertyName"));
                     if (propertyNode != null) {
                         SInterval propertyEffectiveTime;
-                        if (propertyInfo.containsKey("effectiveTime")) {
+                        if (propertyInfo.containsKey("effectiveTime") && propertyInfo.get("effectiveTime") != null) {
                             propertyEffectiveTime = new SInterval((Map<String, Object>) (propertyInfo.get("effectiveTime")));
                             // 检查属性节点的有效时间是否满足约束
                             if (objectEffectiveTime.contains(propertyEffectiveTime)) {
@@ -297,6 +297,12 @@ public class UpdatingQuery {
                             SInterval valueEffectiveTime = new SInterval(valueEffectiveTimeMap);
                             // 检查值节点的有效时间是否满足约束
                             if (propertyEffectiveTime.contains(valueEffectiveTime)) {
+                                for (Node valueNode : UpdatingQuery.getValueNodes(propertyNode)) {
+                                    SInterval otherEffectiveTime = new SInterval(new STimePoint(valueNode.getProperty("intervalFrom")), new STimePoint(valueNode.getProperty("intervalTo")));
+                                    if (!otherEffectiveTime.contains(new STimePoint(operateTime)) && otherEffectiveTime.overlaps(valueEffectiveTime)) {
+                                        throw new RuntimeException("The effective time of value nodes of the same property nodes can't overlap");
+                                    }
+                                }
                                 // 值节点的有效时间满足约束
                                 List<Node> valueNodes = ReadingQuery.getValueNodes(propertyNode, operateTime);
                                 if (valueNodes.size() == 1) {
@@ -312,6 +318,8 @@ public class UpdatingQuery {
                                 throw new RuntimeException("The effective time of value node must in the effective time of it's property node");
                             }
                         }
+                    } else {
+                        throw new RuntimeException("The node hasn't property `" + propertyInfo.get("propertyName") + "`");
                     }
                 }
             } else if (objectInfo.get("object") instanceof Relationship relationship) {
@@ -453,11 +461,15 @@ public class UpdatingQuery {
                                             SInterval valueEffectiveTime = new SInterval(new STimePoint(valueNode.getProperty("intervalFrom")), new STimePoint(valueNode.getProperty("intervalTo")));
                                             if (valueEffectiveTime.getIntervalTo().getSystemTimePoint().equals(NOW.getSystemTimePoint())) {
                                                 // 物理删除已有值节点，staleValueNode返回待物理删除的值节点
-                                                Map<String, List> staleValueNode = new HashMap<>();
-                                                List<Node> valueNodeList = new ArrayList<>();
-                                                valueNodeList.add(valueNode);
-                                                staleValueNode.put("staleValueNode", valueNodeList);
-                                                itemsToSetProperty.add(staleValueNode);
+                                                if (valueEffectiveTime.getIntervalFrom().isBefore(operateTime)) {
+                                                    Map<String, List> staleValueNode = new HashMap<>();
+                                                    List<Node> valueNodeList = new ArrayList<>();
+                                                    valueNodeList.add(valueNode);
+                                                    staleValueNode.put("staleValueNode", valueNodeList);
+                                                    itemsToSetProperty.add(staleValueNode);
+                                                } else {
+                                                    throw new RuntimeException("The operate time must be latter than the start time of current value node. Please alter the operate time");
+                                                }
                                             } else {
                                                 throw new RuntimeException("The operate time fall in the effective time of a historical value node. Please alter the operate time");
                                             }
@@ -547,7 +559,12 @@ public class UpdatingQuery {
                         for (Node propertyNode : propertyNodes) {
                             Node valueNode = getValueNode(propertyNode, NOW.getSystemTimePoint());
                             if (valueNode != null) {
-                                nodeList.add(valueNode);
+                                SInterval valueEffectiveTime = new SInterval(new STimePoint(valueNode.getProperty("intervalFrom")), new STimePoint(valueNode.getProperty("intervalTo")));
+                                if (valueEffectiveTime.getIntervalFrom().isBefore(operateTime)) {
+                                    nodeList.add(valueNode);
+                                } else {
+                                    throw new RuntimeException("The operate time must be latter than the start time of current value node. Please alter the operate time");
+                                }
                             }
                         }
                         if (nodeList.size() != 0) {
