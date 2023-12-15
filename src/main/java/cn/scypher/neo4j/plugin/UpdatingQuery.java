@@ -241,12 +241,12 @@ public class UpdatingQuery {
      * @param objectInfo            对象节点/关系及其有效时间，为map类型，有两个key：object和effectiveTime
      * @param propertyInfo          属性名及属性节点的有效时间，为map类型，有两个key：propertyName和effectiveTime
      * @param valueEffectiveTimeMap 值节点的有效时间，为时间区间
-     * @param operateTime           set语句的操作时间，为时间点。修改值节点的有效时间时，修改在该时间有效的值节点的有效时间
+     * @param operateTimeObject     set语句的操作时间，为时间点。修改值节点的有效时间时，修改在该时间有效的值节点的有效时间
      * @return 返回对象节点/关系/属性节点/值节点及其待设置的有效时间，返回前需检查有效时间的约束
      */
     @UserFunction("scypher.getItemsToSetEffectiveTime")
     @Description("Get the info of items to set effective time.")
-    public List<Map<String, Object>> getItemsToSetEffectiveTime(@Name("objectInfo") Map<String, Object> objectInfo, @Name("propertyInfo") Map<String, Object> propertyInfo, @Name("valueEffectiveTime") Map<String, Object> valueEffectiveTimeMap, @Name("operateTime") Object operateTime) {
+    public List<Map<String, Object>> getItemsToSetEffectiveTime(@Name("objectInfo") Map<String, Object> objectInfo, @Name("propertyInfo") Map<String, Object> propertyInfo, @Name("valueEffectiveTime") Map<String, Object> valueEffectiveTimeMap, @Name("operateTime") Object operateTimeObject) {
         if (objectInfo != null) {
             List<Map<String, Object>> itemsToSetEffectiveTime = new ArrayList<>();
             // 修改对象节点/属性节点/值节点的有效时间
@@ -255,12 +255,23 @@ public class UpdatingQuery {
                 if (objectInfo.containsKey("effectiveTime") && objectInfo.get("effectiveTime") != null) {
                     objectEffectiveTime = new SInterval((Map<String, Object>) objectInfo.get("effectiveTime"));
                     // 检查对象节点的有效时间是否满足约束
+                    // 对象节点的有效时间是否覆盖其所有边的有效时间
                     ResourceIterable<Relationship> relationships = objectNode.getRelationships();
                     for (Relationship relationship : relationships) {
                         if (!relationship.isType(RelationshipType.withName("OBJECT_PROPERTY")) && !relationship.isType(RelationshipType.withName("PROPERTY_VALUE"))) {
                             SInterval relationshipEffectiveTime = new SInterval(new STimePoint(relationship.getProperty("intervalFrom")), new STimePoint(relationship.getProperty("intervalTo")));
                             if (!objectEffectiveTime.contains(relationshipEffectiveTime)) {
                                 throw new RuntimeException("The effective time of object node must contain the effective time of it's relationships");
+                            }
+                        }
+                    }
+                    // 对象节点的有效时间是否覆盖其所有属性节点的有效时间
+                    List<Node> propertyNodes = UpdatingQuery.getPropertyNodes(objectNode);
+                    for (Node propertyNode : propertyNodes) {
+                        SInterval propertyEffectiveTime = new SInterval(new STimePoint(propertyNode.getProperty("intervalFrom")), new STimePoint(propertyNode.getProperty("intervalTo")));
+                        if (propertyInfo == null | (propertyInfo != null && !propertyNode.getProperty("content").equals(propertyInfo.get("propertyName")))) {
+                            if (!objectEffectiveTime.contains(propertyEffectiveTime)) {
+                                throw new RuntimeException("The effective time of object node must contain the effective time of it's property nodes");
                             }
                         }
                     }
@@ -281,6 +292,17 @@ public class UpdatingQuery {
                             propertyEffectiveTime = new SInterval((Map<String, Object>) (propertyInfo.get("effectiveTime")));
                             // 检查属性节点的有效时间是否满足约束
                             if (objectEffectiveTime.contains(propertyEffectiveTime)) {
+                                // 属性节点的有效时间是否覆盖其所有值节点的有效时间
+                                List<Node> valueNodes = UpdatingQuery.getPropertyNodes(objectNode);
+                                STimePoint operateTime = new STimePoint(operateTimeObject);
+                                for (Node valueNode : valueNodes) {
+                                    SInterval valueEffectiveTime = new SInterval(new STimePoint(valueNode.getProperty("intervalFrom")), new STimePoint(valueNode.getProperty("intervalTo")));
+                                    if (valueEffectiveTimeMap == null | !valueEffectiveTime.contains(operateTime)) {
+                                        if (!propertyEffectiveTime.contains(valueEffectiveTime)) {
+                                            throw new RuntimeException("The effective time of property node must contain the effective time of it's value nodes");
+                                        }
+                                    }
+                                }
                                 // 属性节点的有效时间满足约束
                                 Map<String, Object> propertyNodeInfo = new HashMap<>();
                                 propertyNodeInfo.put("item", propertyNode);
@@ -295,16 +317,17 @@ public class UpdatingQuery {
                         }
                         if (valueEffectiveTimeMap != null) {
                             SInterval valueEffectiveTime = new SInterval(valueEffectiveTimeMap);
+                            STimePoint operateTime = new STimePoint(operateTimeObject);
                             // 检查值节点的有效时间是否满足约束
                             if (propertyEffectiveTime.contains(valueEffectiveTime)) {
                                 for (Node valueNode : UpdatingQuery.getValueNodes(propertyNode)) {
                                     SInterval otherEffectiveTime = new SInterval(new STimePoint(valueNode.getProperty("intervalFrom")), new STimePoint(valueNode.getProperty("intervalTo")));
-                                    if (!otherEffectiveTime.contains(new STimePoint(operateTime)) && otherEffectiveTime.overlaps(valueEffectiveTime)) {
+                                    if (!otherEffectiveTime.contains(operateTime) && otherEffectiveTime.overlaps(valueEffectiveTime)) {
                                         throw new RuntimeException("The effective time of value nodes of the same property nodes can't overlap");
                                     }
                                 }
                                 // 值节点的有效时间满足约束
-                                List<Node> valueNodes = ReadingQuery.getValueNodes(propertyNode, operateTime);
+                                List<Node> valueNodes = ReadingQuery.getValueNodes(propertyNode, operateTimeObject);
                                 if (valueNodes.size() == 1) {
                                     Map<String, Object> valueNodeInfo = new HashMap<>();
                                     valueNodeInfo.put("item", valueNodes.get(0));
