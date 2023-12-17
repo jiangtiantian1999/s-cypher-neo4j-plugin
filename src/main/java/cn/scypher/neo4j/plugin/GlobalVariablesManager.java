@@ -33,7 +33,11 @@ public class GlobalVariablesManager {
     }
 
     public static void setSnapshotTimePoint(STimePoint snapshotTimePoint) {
-        GlobalVariablesManager.snapshotTimePoint = snapshotTimePoint;
+        if (snapshotTimePoint == null | (snapshotTimePoint != null && snapshotTimePoint.getTimePointType().equals(GlobalVariablesManager.timePointType))) {
+            GlobalVariablesManager.snapshotTimePoint = snapshotTimePoint;
+        } else {
+            throw new RuntimeException("The time point type of snapshot must be consistent with the system");
+        }
     }
 
     public static SInterval getScopeInterval() {
@@ -41,6 +45,10 @@ public class GlobalVariablesManager {
     }
 
     public static void setScopeInterval(SInterval scopeInterval) {
-        GlobalVariablesManager.scopeInterval = scopeInterval;
+        if (scopeInterval == null | (scopeInterval != null && scopeInterval.getTimePointType().equals(GlobalVariablesManager.timePointType))) {
+            GlobalVariablesManager.scopeInterval = scopeInterval;
+        } else {
+            throw new RuntimeException("The interval type of scope must be consistent with the system");
+        }
     }
 }

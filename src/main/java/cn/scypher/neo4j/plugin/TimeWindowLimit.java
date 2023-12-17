@@ -11,6 +11,15 @@ import java.util.Map;
 
 public class TimeWindowLimit {
 
+    /**
+     * @param elementEffectiveTime 节点/边的有效时间
+     * @param timeWindow           在图模式中指定的时间窗口
+     * @param clauseTimePoint      at time指定的时间点
+     * @param clauseInterval       between指定的时间区间
+     * @param snapshotTimePoint    snapshot指定的时间点
+     * @param scopeInterval        scope指定的时间区间
+     * @return
+     */
     public boolean limitEffectiveTime(SInterval elementEffectiveTime, Object timeWindow, STimePoint clauseTimePoint, SInterval clauseInterval, STimePoint snapshotTimePoint, SInterval scopeInterval) {
         // @T指定的时间区间
         STimePoint elementTimePoint = null;
@@ -28,7 +37,7 @@ public class TimeWindowLimit {
             // 优先受@T指定的时间区间限制
             if (elementTimePoint != null && elementEffectiveTime.contains(elementTimePoint)) {
                 return true;
-            } else if (elementInterval != null && elementEffectiveTime.contains(elementInterval)) {
+            } else if (elementInterval != null && elementEffectiveTime.overlaps(elementInterval)) {
                 return true;
             }
             return false;
@@ -36,13 +45,13 @@ public class TimeWindowLimit {
             // 次优先受at time/between子句指定的时间区间限制
             if (clauseTimePoint != null && elementEffectiveTime.contains(clauseTimePoint)) {
                 return true;
-            } else if (clauseInterval != null && elementEffectiveTime.contains(clauseInterval)) {
+            } else if (clauseInterval != null && elementEffectiveTime.overlaps(clauseInterval)) {
                 return true;
             }
             return false;
         } else if (snapshotTimePoint != null | scopeInterval != null) {
             // 最后受snapshot/scope语句指定的时间区间限制
-            if (scopeInterval != null && elementEffectiveTime.contains(scopeInterval)) {
+            if (scopeInterval != null && elementEffectiveTime.overlaps(scopeInterval)) {
                 // 时序图查询语法优先受SCOPE限制
                 return true;
             } else if (snapshotTimePoint != null && elementEffectiveTime.contains(snapshotTimePoint)) {

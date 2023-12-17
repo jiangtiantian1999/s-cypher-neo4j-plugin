@@ -57,11 +57,13 @@ public class ReadingQuery {
                 valueNodeList.add(valueNode);
             } else if (valueNodeInterval != null && valueNodeEffectiveTime.overlaps(valueNodeInterval)) {
                 valueNodeList.add(valueNode);
-            } else if (scopeInterval != null && valueNodeEffectiveTime.overlaps(scopeInterval)) {
-                // 时序查询子句和delete子句均优先使用scope定义的有效时间
-                valueNodeList.add(valueNode);
-            } else if (snapshotTimePoint != null && valueNodeEffectiveTime.contains(snapshotTimePoint)) {
-                valueNodeList.add(valueNode);
+            } else if (valueNodeTimePoint == null && valueNodeInterval == null) {
+                if (scopeInterval != null && valueNodeEffectiveTime.overlaps(scopeInterval)) {
+                    // 时序查询子句和delete子句均优先使用scope定义的有效时间
+                    valueNodeList.add(valueNode);
+                } else if (snapshotTimePoint != null && valueNodeEffectiveTime.contains(snapshotTimePoint)) {
+                    valueNodeList.add(valueNode);
+                }
             }
         }
         return valueNodeList;

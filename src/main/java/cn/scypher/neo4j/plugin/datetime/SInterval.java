@@ -148,7 +148,7 @@ public class SInterval {
         if (this.intervalFrom.getTimePointType().equals(interval.getTimePointType())) {
             return !interval.intervalFrom.isBefore(this.intervalFrom) && !interval.intervalTo.isAfter(this.intervalTo);
         } else {
-            throw new RuntimeException("Only the interval can only contain the time point of the same type");
+            throw new RuntimeException("The interval can only contain the time point of the same type");
         }
     }
 
