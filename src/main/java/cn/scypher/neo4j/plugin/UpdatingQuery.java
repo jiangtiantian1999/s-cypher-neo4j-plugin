@@ -156,78 +156,117 @@ public class UpdatingQuery {
                     // 物理删除对象节点的所有属性节点和值节点以及相连边
                     itemsToDelete.addAll(deleteObjectNode(objectNode));
                 }
+                return itemsToDelete;
+            } else if (object instanceof Relationship) {
+                return itemsToDelete;
             } else if (object instanceof Path path) {
-                // 物理删除路径，并删除路径上所有对象节点的所有属性节点和值节点以及相连边
+                // 物理删除路径，并删除路径上所有对象节点的所有属性节点和值节点
                 for (Node objectNode : path.nodes()) {
                     itemsToDelete.addAll(deleteObjectNode(objectNode));
                 }
+                return itemsToDelete;
             } else {
                 throw new RuntimeException("Type mismatch: expected Node, Relationship or Path but was " + object.getClass().getSimpleName());
             }
-            return itemsToDelete;
         } else {
             throw new RuntimeException("Missing parameter");
         }
     }
 
     /**
-     * @param object          对象节点/关系
-     * @param propertyName    属性名
-     * @param deleteValueNode 是否仅逻辑删除值节点
-     * @param operateTime     逻辑删除时间
+     * @param object            对象节点/关系
+     * @param propertyName      属性名
+     * @param deleteValueNode   是否仅逻辑删除值节点
+     * @param operateTimeObject 逻辑删除时间
      * @return 以列表形式返回所有待逻辑删除的元素
      */
     @UserFunction("scypher.getItemsToStale")
     @Description("Get the items to stale.")
-    public List<Object> getItemsToStale(@Name("object") Object object, @Name("propertyName") String propertyName, @Name("deleteValueNode") boolean deleteValueNode, @Name("operateTime") Object operateTime) {
+    public List<Object> getItemsToStale(@Name("object") Object object, @Name("propertyName") String propertyName, @Name("deleteValueNode") boolean deleteValueNode, @Name("operateTime") Object operateTimeObject) {
         if (object != null) {
             List<Object> itemsToStale = new ArrayList<>();
+            String timePointType = GlobalVariablesManager.getTimePointType();
+            String timezone = GlobalVariablesManager.getTimezone();
+            STimePoint NOW = new STimePoint("NOW", timePointType, timezone);
+            STimePoint operateTime;
+            if (operateTimeObject != null) {
+                operateTime = new STimePoint(operateTimeObject);
+            } else {
+                operateTime = new STimePoint(timePointType, timezone);
+            }
             if (object instanceof Node objectNode) {
-                String timePointType = GlobalVariablesManager.getTimePointType();
-                String timezone = GlobalVariablesManager.getTimezone();
-                STimePoint NOW = new STimePoint("NOW", timePointType, timezone);
-                if (propertyName != null) {
-                    // 逻辑删除对象节点的属性
-                    Node propertyNode = ReadingQuery.getPropertyNode(objectNode, propertyName);
-                    if (propertyNode != null && propertyNode.getProperty("intervalTo").equals(NOW.getSystemTimePoint())) {
-                        List<Node> valueNodes;
-                        if (!deleteValueNode) {
-                            // 逻辑删除属性节点和值节点
-                            valueNodes = getValueNodes(propertyNode);
-                            itemsToStale.add(propertyNode);
-                        } else {
-                            // 仅逻辑删除值节点
-                            valueNodes = ReadingQuery.getValueNodes(propertyNode, operateTime);
-                        }
-                        for (Node valueNode : valueNodes) {
-                            if (valueNode.getProperty("intervalTo").equals(NOW.getSystemTimePoint())) {
-                                itemsToStale.add(valueNode);
-                                break;
+                if (objectNode.getProperty("intervalTo").equals(NOW.getSystemTimePoint())) {
+                    if (propertyName != null) {
+                        // 逻辑删除对象节点的属性
+                        Node propertyNode = ReadingQuery.getPropertyNode(objectNode, propertyName);
+                        if (propertyNode != null && propertyNode.getProperty("intervalTo").equals(NOW.getSystemTimePoint())) {
+                            if (!deleteValueNode) {
+                                // 逻辑删除属性节点和值节点
+                                if ((new STimePoint(propertyNode.getProperty("intervalFrom"))).isBefore(operateTime)) {
+                                    itemsToStale.add(propertyNode);
+                                } else {
+                                    throw new RuntimeException("The operate time must be latter than the start time of current property node. Please alter the operate time");
+                                }
+                            }
+                            List<Node> valueNodes = ReadingQuery.getValueNodes(propertyNode, NOW.getSystemTimePoint());
+                            if (valueNodes.size() == 1) {
+                                if ((new STimePoint(valueNodes.get(0).getProperty("intervalFrom"))).isBefore(operateTime)) {
+                                    itemsToStale.add(valueNodes.get(0));
+                                } else {
+                                    throw new RuntimeException("The operate time must be latter than the start time of current value node. Please alter the operate time");
+                                }
+                            } else if (valueNodes.size() > 1) {
+                                throw new RuntimeException("Temporal Graph Database System Error");
                             }
                         }
-                    }
-                } else {
-                    // 逻辑删除对象节点，并逻辑删除其所有属性节点和值节点
-                    if (objectNode.getProperty("intervalTo").equals(NOW.getSystemTimePoint())) {
-                        itemsToStale.add(objectNode);
-                        List<Node> propertyNodes = getPropertyNodes(objectNode);
-                        for (Node propertyNode : propertyNodes) {
-                            if (propertyNode.getProperty("intervalTo").equals(NOW.getSystemTimePoint())) {
-                                itemsToStale.add(propertyNode);
-                                List<Node> valueNodes = getValueNodes(propertyNode);
-                                for (Node valueNode : valueNodes) {
-                                    if (valueNode.getProperty("intervalTo").equals(NOW.getSystemTimePoint())) {
-                                        itemsToStale.add(valueNode);
-                                        break;
+                    } else {
+                        // 逻辑删除对象节点，并逻辑删除其所有属性节点、值节点和相连关系
+                        if ((new STimePoint(objectNode.getProperty("intervalFrom"))).isBefore(operateTime)) {
+                            itemsToStale.add(objectNode);
+                            List<Node> propertyNodes = getPropertyNodes(objectNode);
+                            for (Node propertyNode : propertyNodes) {
+                                if (propertyNode.getProperty("intervalTo").equals(NOW.getSystemTimePoint())) {
+                                    if ((new STimePoint(propertyNode.getProperty("intervalFrom"))).isBefore(operateTime)) {
+                                        itemsToStale.add(propertyNode);
+                                        List<Node> valueNodes = ReadingQuery.getValueNodes(propertyNode, NOW.getSystemTimePoint());
+                                        if (valueNodes.size() == 1) {
+                                            if ((new STimePoint(valueNodes.get(0).getProperty("intervalFrom"))).isBefore(operateTime)) {
+                                                itemsToStale.add(valueNodes.get(0));
+                                            } else {
+                                                throw new RuntimeException("The operate time must be latter than the start time of current value node. Please alter the operate time");
+                                            }
+                                        } else if (valueNodes.size() > 1) {
+                                            throw new RuntimeException("Temporal Graph Database System Error");
+                                        }
+                                    } else {
+                                        throw new RuntimeException("The operate time must be latter than the start time of current property node. Please alter the operate time");
                                     }
                                 }
                             }
+                            ResourceIterable<Relationship> relationships = objectNode.getRelationships();
+                            for (Relationship relationship : relationships) {
+                                if (relationship.hasProperty("intervalTo") && relationship.getProperty("intervalTo").equals(NOW.getSystemTimePoint())) {
+                                    if ((new STimePoint(relationship.getProperty("intervalFrom"))).isBefore(operateTime)) {
+                                        itemsToStale.add(relationship);
+                                    } else {
+                                        throw new RuntimeException("The operate time must be latter than the start time of current relationship. Please alter the operate time");
+                                    }
+                                }
+                            }
+                        } else {
+                            throw new RuntimeException("The operate time must be latter than the start time of current object node. Please alter the operate time");
                         }
                     }
                 }
             } else if (object instanceof Relationship relationship) {
                 // 逻辑删除关系
-                itemsToStale.add(relationship);
+                if (relationship.getProperty("intervalTo").equals(NOW.getSystemTimePoint())) {
+                    if ((new STimePoint(relationship.getProperty("intervalFrom"))).isBefore(operateTime)) {
+                        itemsToStale.add(relationship);
+                    } else {
+                        throw new RuntimeException("The operate time must be latter than the start time of current relationship. Please alter the operate time");
+                    }
+                }
             } else {
                 throw new RuntimeException("Type mismatch: expected Node or Relationship but was " + object.getClass().getSimpleName());
             }

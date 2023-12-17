@@ -185,7 +185,11 @@ public class ReadingQuery {
                     return null;
                 }
             } else if (object instanceof Relationship relationship) {
-                return relationship.getProperty(propertyName);
+                if (relationship.hasProperty(propertyName)) {
+                    return relationship.getProperty(propertyName);
+                } else {
+                    return null;
+                }
             } else if (object instanceof Map) {
                 Map<String, Object> objectMap = (Map<String, Object>) object;
                 return objectMap.getOrDefault(propertyName, null);
