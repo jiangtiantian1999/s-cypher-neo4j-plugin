@@ -7,6 +7,8 @@ import java.util.Map;
 
 public class SLocalDateTime {
     private final LocalDateTime localdatetime;
+    public final LocalDateTime MIN = LocalDateTime.MIN;
+    public final LocalDateTime MAX = LocalDateTime.MAX;
 
     public SLocalDateTime() {
         this.localdatetime = LocalDateTime.now();

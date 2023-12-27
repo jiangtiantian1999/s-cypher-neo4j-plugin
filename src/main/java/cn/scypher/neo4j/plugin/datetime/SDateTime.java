@@ -7,15 +7,22 @@ import java.util.Map;
 public class SDateTime {
     private final ZonedDateTime datetime;
 
+    public final ZonedDateTime MIN;
+    public final ZonedDateTime MAX;
+
     public SDateTime(String timezone) {
         if (timezone == null) {
             timezone = "Z";
         }
         this.datetime = ZonedDateTime.now(ZoneId.of(timezone));
+        this.MIN = ZonedDateTime.of(LocalDateTime.MIN, ZoneId.of(timezone));
+        this.MAX = ZonedDateTime.of(LocalDateTime.MAX, ZoneId.of(timezone));
     }
 
     public SDateTime(ZonedDateTime datetime) {
         this.datetime = datetime;
+        this.MIN = ZonedDateTime.of(LocalDateTime.MIN, datetime.getZone());
+        this.MAX = ZonedDateTime.of(LocalDateTime.MAX, datetime.getZone());
     }
 
     public SDateTime(String datetimeString, String timezone) {
@@ -34,6 +41,8 @@ public class SDateTime {
                 this.datetime = ZonedDateTime.of(date.getDate(), LocalTime.MIN, ZoneId.of(timezone));
             }
         }
+        this.MIN = ZonedDateTime.of(LocalDateTime.MIN, ZoneId.of(timezone));
+        this.MAX = ZonedDateTime.of(LocalDateTime.MAX, ZoneId.of(timezone));
     }
 
     public SDateTime(Map<String, Object> datetimeMap, String timezone) {
@@ -53,6 +62,8 @@ public class SDateTime {
             time = new STime("00", timezone);
         }
         this.datetime = ZonedDateTime.of(date.getDate(), time.getTime().toLocalTime(), time.getTime().getOffset());
+        this.MIN = ZonedDateTime.of(LocalDateTime.MIN, ZoneId.of(timezone));
+        this.MAX = ZonedDateTime.of(LocalDateTime.MAX, ZoneId.of(timezone));
     }
 
     public Duration difference(SDateTime datetime) {

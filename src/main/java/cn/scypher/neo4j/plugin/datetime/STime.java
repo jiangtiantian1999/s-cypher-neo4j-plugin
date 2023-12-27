@@ -8,6 +8,8 @@ import java.util.regex.Pattern;
 
 public class STime {
     private final OffsetTime time;
+    public final OffsetTime MIN = OffsetTime.MIN;
+    public final OffsetTime MAX = OffsetTime.MAX;
 
     public STime(String timezone) {
         if (timezone == null) {

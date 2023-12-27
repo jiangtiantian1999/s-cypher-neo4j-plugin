@@ -8,6 +8,10 @@ import java.util.regex.Pattern;
 public class SDate {
     private final LocalDate date;
 
+    public final LocalDate MIN = LocalDate.MIN;
+
+    public final LocalDate MAX = LocalDate.MAX;
+
     public SDate() {
         this.date = LocalDate.now();
     }

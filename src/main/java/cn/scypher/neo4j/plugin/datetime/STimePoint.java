@@ -128,6 +128,25 @@ public class STimePoint {
         }
     }
 
+    public boolean isNotBefore(STimePoint timePoint) {
+        if (this.getTimePointType().equals(timePoint.getTimePointType())) {
+            if (this.timePoint instanceof SDate) {
+                return !((SDate) this.timePoint).isBefore((SDate) timePoint.getTimePoint());
+            } else if (this.timePoint instanceof STime) {
+                return !((STime) this.timePoint).isBefore((STime) timePoint.getTimePoint());
+            } else if (this.timePoint instanceof SLocalTime) {
+                return !((SLocalTime) this.timePoint).isBefore((SLocalTime) timePoint.getTimePoint());
+            } else if (this.timePoint instanceof SDateTime) {
+                return !((SDateTime) this.timePoint).isBefore((SDateTime) timePoint.getTimePoint());
+            } else if (this.timePoint instanceof SLocalDateTime) {
+                return !((SLocalDateTime) this.timePoint).isBefore((SLocalDateTime) timePoint.getTimePoint());
+            }
+            return false;
+        } else {
+            throw new RuntimeException("Only the time points of the same type can be compared");
+        }
+    }
+
     public boolean isAfter(STimePoint timePoint) {
         if (this.getTimePointType().equals(timePoint.getTimePointType())) {
             if (this.timePoint instanceof SDate) {
@@ -147,19 +166,84 @@ public class STimePoint {
         }
     }
 
+    public boolean isNotAfter(STimePoint timePoint) {
+        if (this.getTimePointType().equals(timePoint.getTimePointType())) {
+            if (this.timePoint instanceof SDate) {
+                return !((SDate) this.timePoint).isAfter((SDate) timePoint.getTimePoint());
+            } else if (this.timePoint instanceof STime) {
+                return !((STime) this.timePoint).isAfter((STime) timePoint.getTimePoint());
+            } else if (this.timePoint instanceof SLocalTime) {
+                return !((SLocalTime) this.timePoint).isAfter((SLocalTime) timePoint.getTimePoint());
+            } else if (this.timePoint instanceof SDateTime) {
+                return !((SDateTime) this.timePoint).isAfter((SDateTime) timePoint.getTimePoint());
+            } else if (this.timePoint instanceof SLocalDateTime) {
+                return !((SLocalDateTime) this.timePoint).isAfter((SLocalDateTime) timePoint.getTimePoint());
+            }
+            return false;
+        } else {
+            throw new RuntimeException("Only the time points of the same type can be compared");
+        }
+    }
+
     public String getTimePointType() {
         if (this.timePoint instanceof SDate) {
             return "date";
         } else if (this.timePoint instanceof STime) {
             return "time";
-        } else if (this.timePoint instanceof LocalTime) {
+        } else if (this.timePoint instanceof SLocalTime) {
             return "localtime";
         } else if (this.timePoint instanceof SDateTime) {
             return "datetime";
-        } else {
+        } else if (this.timePoint instanceof SLocalDateTime) {
             return "localdatetime";
         }
+        throw new RuntimeException("The time point type must be date, time, localtime, datetime or localdatetime but was" + this.timePoint.getClass().getSimpleName());
     }
+
+    public static STimePoint min(String timePointType, String timezone) {
+        switch (timePointType) {
+            case "date" -> {
+                return new STimePoint(new SDate().MIN);
+            }
+            case "time" -> {
+                return new STimePoint(new STime(timezone).MIN);
+            }
+            case "localtime" -> {
+                return new STimePoint(new SLocalTime().MIN);
+            }
+            case "datetime" -> {
+                return new STimePoint(new SDateTime(timezone).MIN);
+            }
+            case "localdatetime" -> {
+                return new STimePoint(new SLocalDateTime().MIN);
+            }
+            default ->
+                    throw new RuntimeException("The time point type must be date, time, localtime, datetime or localdatetime but was" + timePointType);
+        }
+    }
+
+    public static STimePoint max(String timePointType, String timezone) {
+        switch (timePointType) {
+            case "date" -> {
+                return new STimePoint(new SDate().MAX);
+            }
+            case "time" -> {
+                return new STimePoint(new STime(timezone).MAX);
+            }
+            case "localtime" -> {
+                return new STimePoint(new SLocalTime().MAX);
+            }
+            case "datetime" -> {
+                return new STimePoint(new SDateTime(timezone).MAX);
+            }
+            case "localdatetime" -> {
+                return new STimePoint(new SLocalDateTime().MAX);
+            }
+            default ->
+                    throw new RuntimeException("The time point type must be date, time, localtime, datetime or localdatetime but was" + timePointType);
+        }
+    }
+
 
     /**
      * @return 返回SDate、STime、SLocalTime、SDateTime或SLocalDateTime

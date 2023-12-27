@@ -1,6 +1,7 @@
 package cn.scypher.neo4j.plugin.datetime;
 
 import java.time.Duration;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.HashMap;
 import java.util.Map;
@@ -9,6 +10,9 @@ import java.util.regex.Pattern;
 
 public class SLocalTime {
     private final LocalTime localtime;
+
+    public final LocalTime MIN = LocalTime.MIN;
+    public final LocalTime MAX = LocalTime.MAX;
 
     public SLocalTime() {
         this.localtime = LocalTime.now();

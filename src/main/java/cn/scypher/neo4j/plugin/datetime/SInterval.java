@@ -77,23 +77,31 @@ public class SInterval {
     }
 
     public boolean overlaps(SInterval interval) {
-        if (this.getTimePointType().equals(interval.getTimePointType())) {
-            return !(this.intervalFrom.isAfter(interval.getIntervalTo()) | interval.getIntervalFrom().isAfter(this.intervalTo));
+        if (interval != null) {
+            if (this.getTimePointType().equals(interval.getTimePointType())) {
+                return !(this.intervalFrom.isAfter(interval.getIntervalTo()) | interval.getIntervalFrom().isAfter(this.intervalTo));
+            } else {
+                throw new RuntimeException("Only the intervals of the same time point type can perform overlaps operations");
+            }
         } else {
-            throw new RuntimeException("Only the intervals of the same time point type can perform overlaps operations");
+            return false;
         }
     }
 
     public SInterval intersection(SInterval interval) {
-        if (this.getTimePointType().equals(interval.getTimePointType())) {
-            if (this.overlaps(interval)) {
-                STimePoint interval_from = this.intervalFrom.isAfter(interval.getIntervalFrom()) ? this.intervalFrom : interval.getIntervalFrom();
-                STimePoint interval_to = this.intervalTo.isBefore(interval.getIntervalTo()) ? this.intervalTo : interval.getIntervalTo();
-                return new SInterval(interval_from, interval_to);
+        if (interval != null) {
+            if (this.getTimePointType().equals(interval.getTimePointType())) {
+                if (this.overlaps(interval)) {
+                    STimePoint interval_from = this.intervalFrom.isAfter(interval.getIntervalFrom()) ? this.intervalFrom : interval.getIntervalFrom();
+                    STimePoint interval_to = this.intervalTo.isBefore(interval.getIntervalTo()) ? this.intervalTo : interval.getIntervalTo();
+                    return new SInterval(interval_from, interval_to);
+                }
+                return null;
+            } else {
+                throw new RuntimeException("Only the intervals of the same time point type can perform intersection operations");
             }
-            return null;
         } else {
-            throw new RuntimeException("Only the intervals of the same time point type can perform intersection operations");
+            return null;
         }
     }
 
