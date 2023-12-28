@@ -3,6 +3,7 @@ package cn.scypher.neo4j.plugin;
 import cn.scypher.neo4j.plugin.datetime.SInterval;
 import cn.scypher.neo4j.plugin.datetime.STimePoint;
 import org.neo4j.graphdb.*;
+import org.neo4j.graphdb.spatial.Point;
 import org.neo4j.procedure.Description;
 import org.neo4j.procedure.Name;
 import org.neo4j.procedure.UserFunction;
@@ -235,6 +236,28 @@ public class ReadingQuery {
                     return getComponentOfTimePoint(zonedDateTime.getOffset(), propertyName);
                 } else {
                     return getComponentOfTimePoint(Date.from(Timestamp.valueOf(zonedDateTime.toLocalDate().atStartOfDay()).toInstant()), propertyName);
+                }
+            } else if (object instanceof Point point) {
+                if (propertyName.equals("x") | propertyName.equals("longitude")) {
+                    return point.getCoordinate().getCoordinate()[0];
+                } else if (propertyName.equals("y") | propertyName.equals("latitude")) {
+                    if (point.getCoordinate().getCoordinate().length > 1) {
+                        return point.getCoordinates().get(1);
+                    } else {
+                        throw new RuntimeException(propertyName + " is not available on point");
+                    }
+                } else if (propertyName.equals("z") | propertyName.equals("height")) {
+                    if (point.getCoordinate().getCoordinate().length > 2) {
+                        return point.getCoordinates().get(2);
+                    } else {
+                        throw new RuntimeException(propertyName + " is not available on point");
+                    }
+                } else if (propertyName.equals("crs")) {
+                    return point.getCRS();
+                } else if (propertyName.equals("srid")) {
+                    return point.getCRS().getCode();
+                } else {
+                    throw new RuntimeException("No such field: " + propertyName);
                 }
             } else {
                 throw new RuntimeException("Type mismatch: expected Map, Node, Relationship, Point, Duration, Date, Time, LocalTime, LocalDateTime or DateTime but was " + object.getClass().getSimpleName());

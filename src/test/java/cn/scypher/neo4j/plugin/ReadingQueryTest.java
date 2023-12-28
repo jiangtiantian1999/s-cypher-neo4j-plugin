@@ -61,6 +61,10 @@ public class ReadingQueryTest {
         for (Record record : records) {
             System.out.println(record);
         }
+        records = this.session.run("RETURN scypher.getPropertyValue(point({latitude: 12, longitude: 56, height: 1000}), 'x', null)").list();
+        for (Record record : records) {
+            System.out.println(record);
+        }
     }
 
     @Test
