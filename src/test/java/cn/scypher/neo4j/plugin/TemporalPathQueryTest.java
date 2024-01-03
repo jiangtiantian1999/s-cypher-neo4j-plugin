@@ -42,7 +42,7 @@ public class TemporalPathQueryTest {
                 "CREATE (s3)-[r1:G289{intervalFrom:scypher.timePoint(\"2023-02-06T13:46\"), intervalTo:scypher.timePoint(\"2023-02-06T14:54\")}]->(s1)" +
                 "CREATE (s6)-[r2:G7540{intervalFrom:scypher.timePoint(\"2023-02-06T13:03\"), intervalTo:scypher.timePoint(\"2023-02-06T16:40\")}]->(s1)" +
                 "CREATE (s6)-[r3:G116{intervalFrom:scypher.timePoint(\"2023-02-06T09:26\"), intervalTo:scypher.timePoint(\"2023-02-06T12:28\")}]->(s3)" +
-                "CREATE (s4)-[r4:G178{intervalFrom:scypher.timePoint(\"2023-02-06T12:44\"), intervalTo:scypher.timePoint(\"2023-02-06T14:32\")}]->(s3)" +
+                "CREATE (s4)-[r4:G178{intervalFrom:scypher.timePoint(\"2023-02-06T11:12\"), intervalTo:scypher.timePoint(\"2023-02-06T12:32\")}]->(s3)" +
                 "CREATE (s5)-[r5:G3190{intervalFrom:scypher.timePoint(\"2023-02-06T12:09\"), intervalTo:scypher.timePoint(\"2023-02-06T17:39\")}]->(s2)" +
                 "CREATE (s6)-[r6:G1204{intervalFrom:scypher.timePoint(\"2023-02-06T09:33\"), intervalTo:scypher.timePoint(\"2023-02-06T11:04\")}]->(s4)" +
                 "CREATE (s8)-[r7:G7602{intervalFrom:scypher.timePoint(\"2023-02-06T09:54\"), intervalTo:scypher.timePoint(\"2023-02-06T11:58\")}]->(s5)" +
@@ -82,6 +82,13 @@ public class TemporalPathQueryTest {
         System.out.println("testCPath");
         List<Record> records = this.session.run("MATCH (n1:Person),(n2:Person) " +
                 "CALL scypher.cPath(n1,n2,False,{labels:['FRIEND'], minLength:2, maxLength:2}) " +
+                "YIELD path " +
+                "RETURN path").list();
+        for (Record record : records) {
+            System.out.println(record);
+        }
+        records = this.session.run("MATCH (n1:Station),(n2:Station) " +
+                "CALL scypher.cPath(n1,n2,False,{minLength:2, maxLength:2}) " +
                 "YIELD path " +
                 "RETURN path").list();
         for (Record record : records) {

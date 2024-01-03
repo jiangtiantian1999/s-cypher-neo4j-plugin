@@ -43,25 +43,30 @@ public class TemporalPathQuery {
             SInterval pathInterval = pathIntervals.remove(pathIntervals.size() - 1);
             Node currentNode = currentPath.endNode();
             // 限制边的方向、标签、有效时间和属性
-            List<Relationship> relationships = currentNode.getRelationships(Direction.OUTGOING).stream().filter(relationship -> labels.size() == 0 | labels.contains(relationship.getType().name()))
-                    .filter(relationship -> {
-                        SInterval relationshipEffectiveTime = new SInterval(new STimePoint(relationship.getProperty("intervalFrom")), new STimePoint(relationship.getProperty("intervalTo")));
-                        if (relationshipInterval != null) {
-                            return relationshipEffectiveTime.overlaps(relationshipInterval);
-                        } else if (relationshipTimePoint != null) {
-                            return relationshipEffectiveTime.contains(relationshipTimePoint);
-                        }
-                        return true;
-                    }).filter(relationship -> {
-                        for (Map.Entry<String, Object> entry : properties.entrySet()) {
-                            if (!relationship.hasProperty(entry.getKey())) {
-                                return false;
-                            } else if (!relationship.getProperty(entry.getKey()).equals(entry.getValue())) {
-                                return false;
-                            }
-                        }
-                        return true;
-                    }).toList();
+            List<Relationship> relationships = currentNode.getRelationships(Direction.OUTGOING).stream().filter(relationship -> {
+                String type = relationship.getType().name();
+                if (!type.equals("OBJECT_PROPERTY") && !type.equals("PROPERTY_VALUE")) {
+                    return labels.size() == 0 | labels.contains(type);
+                }
+                return false;
+            }).filter(relationship -> {
+                SInterval relationshipEffectiveTime = new SInterval(new STimePoint(relationship.getProperty("intervalFrom")), new STimePoint(relationship.getProperty("intervalTo")));
+                if (relationshipInterval != null) {
+                    return relationshipEffectiveTime.overlaps(relationshipInterval);
+                } else if (relationshipTimePoint != null) {
+                    return relationshipEffectiveTime.contains(relationshipTimePoint);
+                }
+                return true;
+            }).filter(relationship -> {
+                for (Map.Entry<String, Object> entry : properties.entrySet()) {
+                    if (!relationship.hasProperty(entry.getKey())) {
+                        return false;
+                    } else if (!relationship.getProperty(entry.getKey()).equals(entry.getValue())) {
+                        return false;
+                    }
+                }
+                return true;
+            }).toList();
             for (Relationship relationship : relationships) {
                 SInterval relationshipEffectiveTime = new SInterval(new STimePoint(relationship.getProperty("intervalFrom")), new STimePoint(relationship.getProperty("intervalTo")));
                 // 判断路径是否满足时序条件
@@ -104,25 +109,30 @@ public class TemporalPathQuery {
             Path currentPath = pathQueue.remove(pathQueue.size() - 1);
             Node currentNode = currentPath.endNode();
             // 限制边的方向、标签、有效时间和属性
-            List<Relationship> relationships = currentNode.getRelationships(Direction.OUTGOING).stream().filter(relationship -> labels.size() == 0 | labels.contains(relationship.getType().name()))
-                    .filter(relationship -> {
-                        SInterval relationshipEffectiveTime = new SInterval(new STimePoint(relationship.getProperty("intervalFrom")), new STimePoint(relationship.getProperty("intervalTo")));
-                        if (relationshipInterval != null) {
-                            return relationshipEffectiveTime.overlaps(relationshipInterval);
-                        } else if (relationshipTimePoint != null) {
-                            return relationshipEffectiveTime.contains(relationshipTimePoint);
-                        }
-                        return true;
-                    }).filter(relationship -> {
-                        for (Map.Entry<String, Object> entry : properties.entrySet()) {
-                            if (!relationship.hasProperty(entry.getKey())) {
-                                return false;
-                            } else if (!relationship.getProperty(entry.getKey()).equals(entry.getValue())) {
-                                return false;
-                            }
-                        }
-                        return true;
-                    }).toList();
+            List<Relationship> relationships = currentNode.getRelationships(Direction.OUTGOING).stream().filter(relationship -> {
+                String type = relationship.getType().name();
+                if (!type.equals("OBJECT_PROPERTY") && !type.equals("PROPERTY_VALUE")) {
+                    return labels.size() == 0 | labels.contains(type);
+                }
+                return false;
+            }).filter(relationship -> {
+                SInterval relationshipEffectiveTime = new SInterval(new STimePoint(relationship.getProperty("intervalFrom")), new STimePoint(relationship.getProperty("intervalTo")));
+                if (relationshipInterval != null) {
+                    return relationshipEffectiveTime.overlaps(relationshipInterval);
+                } else if (relationshipTimePoint != null) {
+                    return relationshipEffectiveTime.contains(relationshipTimePoint);
+                }
+                return true;
+            }).filter(relationship -> {
+                for (Map.Entry<String, Object> entry : properties.entrySet()) {
+                    if (!relationship.hasProperty(entry.getKey())) {
+                        return false;
+                    } else if (!relationship.getProperty(entry.getKey()).equals(entry.getValue())) {
+                        return false;
+                    }
+                }
+                return true;
+            }).toList();
             Relationship lastRelationship = currentPath.lastRelationship();
             for (Relationship relationship : relationships) {
                 SInterval relationshipEffectiveTime = new SInterval(new STimePoint(relationship.getProperty("intervalFrom")), new STimePoint(relationship.getProperty("intervalTo")));
