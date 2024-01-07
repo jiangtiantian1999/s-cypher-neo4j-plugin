@@ -151,7 +151,7 @@ public class TimeWindowLimit {
             if (timePointType.equals(interval.getTimePointType())) {
                 GlobalVariablesManager.setScopeInterval(interval);
             } else {
-                throw new RuntimeException("The time point type of the interval can't match the system中. The time point type of database is " + timePointType);
+                throw new RuntimeException("The time point type of the interval can't match the system. The time point type of database is " + timePointType);
             }
         } else {
             GlobalVariablesManager.setScopeInterval(null);

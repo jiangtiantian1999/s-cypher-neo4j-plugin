@@ -62,8 +62,13 @@ public class SDateTime {
             time = new STime("00", timezone);
         }
         this.datetime = ZonedDateTime.of(date.getDate(), time.getTime().toLocalTime(), time.getTime().getOffset());
+        if (timezone == null) {
+            timezone = "Z";
+        }
         this.MIN = ZonedDateTime.of(LocalDateTime.MIN, ZoneId.of(timezone));
+        System.out.println(this.MIN);
         this.MAX = ZonedDateTime.of(LocalDateTime.MAX, ZoneId.of(timezone));
+        System.out.println(this.MAX);
     }
 
     public Duration difference(SDateTime datetime) {

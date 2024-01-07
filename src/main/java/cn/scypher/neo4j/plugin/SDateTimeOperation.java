@@ -27,11 +27,9 @@ public class SDateTimeOperation {
                 String timePointType = GlobalVariablesManager.getTimePointType();
                 String timezone = GlobalVariablesManager.getTimezone();
                 return (new STimePoint(timePoint, timePointType, timezone)).getSystemTimePoint();
-            } else if (timePoint instanceof STimePoint) {
+            } else {
                 // timePoint为时间点类型
                 return (new STimePoint(timePoint)).getSystemTimePoint();
-            } else {
-                throw new RuntimeException("Type mismatch: expected String, Map, Date, Time, LocalTime, LocalDateTime or DateTime but was " + timePoint.getClass().getSimpleName());
             }
         } else {
             throw new RuntimeException("Missing parameter");
