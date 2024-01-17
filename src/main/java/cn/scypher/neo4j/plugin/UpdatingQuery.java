@@ -757,24 +757,38 @@ public class UpdatingQuery {
      * @param startNode                      开始节点
      * @param endNode                        结束节点
      * @param relationshipType               关系的类型
+     * @param direction                      关系的方向
      * @param relationshipIntervalFromObject 待设置的关系的开始时间
      * @return 如果关系的开始时间满足约束，则返回relationshipIntervalFrom；反之，则报错。
      */
     @UserFunction("scypher.getIntervalFromOfRelationship")
     @Description("Get the start time of relationship.")
-    public Object getIntervalFromOfRelationship(@Name("startNode") Node startNode, @Name("endNode") Node endNode, @Name("relationshipType") String relationshipType, @Name("relationshipIntervalFrom") Object relationshipIntervalFromObject) {
+    public Object getIntervalFromOfRelationship(@Name("startNode") Node startNode, @Name("endNode") Node endNode, @Name("relationshipType") String relationshipType, @Name("direction") String direction, @Name("relationshipIntervalFrom") Object relationshipIntervalFromObject) {
         if (startNode != null && endNode != null && relationshipType != null && relationshipIntervalFromObject != null) {
             STimePoint startNodeIntervalFrom = new STimePoint(startNode.getProperty("intervalFrom"));
             STimePoint endNodeIntervalFrom = new STimePoint(endNode.getProperty("intervalFrom"));
             STimePoint relationshipIntervalFrom = new STimePoint(relationshipIntervalFromObject);
             // 检查relationshipIntervalFrom的合法性
             if (!startNodeIntervalFrom.isAfter(relationshipIntervalFrom) && !endNodeIntervalFrom.isAfter(relationshipIntervalFrom)) {
-                List<Relationship> relationships = startNode.getRelationships(RelationshipType.withName(relationshipType)).stream().toList();
-                for (Relationship relationship : relationships) {
-                    if (relationship.hasProperty("intervalFrom") && relationship.hasProperty("intervalTo")) {
-                        SInterval relationInterval = new SInterval(new STimePoint(relationship.getProperty("intervalFrom")), new STimePoint(relationship.getProperty("intervalTo")));
-                        if ((relationship.getEndNode().equals(endNode) | relationship.getStartNode().equals(endNode)) && relationInterval.contains(relationshipIntervalFrom)) {
-                            throw new RuntimeException("For relationships with the same content, start node and end node, their effective times do not overlap with each other");
+                if (direction.equalsIgnoreCase("RIGHT") | direction.equalsIgnoreCase("UNDIRECTED")) {
+                    List<Relationship> relationships = startNode.getRelationships(Direction.OUTGOING, RelationshipType.withName(relationshipType)).stream().toList();
+                    for (Relationship relationship : relationships) {
+                        if (relationship.hasProperty("intervalFrom") && relationship.hasProperty("intervalTo")) {
+                            SInterval relationInterval = new SInterval(new STimePoint(relationship.getProperty("intervalFrom")), new STimePoint(relationship.getProperty("intervalTo")));
+                            if (relationship.getEndNode().equals(endNode) && relationInterval.contains(relationshipIntervalFrom)) {
+                                throw new RuntimeException("For relationships with the same content, start node and end node, their effective times do not overlap with each other");
+                            }
+                        }
+                    }
+                }
+                if (direction.equalsIgnoreCase("LEFT") | direction.equalsIgnoreCase("UNDIRECTED")) {
+                    List<Relationship> relationships = endNode.getRelationships(Direction.OUTGOING, RelationshipType.withName(relationshipType)).stream().toList();
+                    for (Relationship relationship : relationships) {
+                        if (relationship.hasProperty("intervalFrom") && relationship.hasProperty("intervalTo")) {
+                            SInterval relationInterval = new SInterval(new STimePoint(relationship.getProperty("intervalFrom")), new STimePoint(relationship.getProperty("intervalTo")));
+                            if (relationship.getEndNode().equals(startNode) && relationInterval.contains(relationshipIntervalFrom)) {
+                                throw new RuntimeException("For relationships with the same content, start node and end node, their effective times do not overlap with each other");
+                            }
                         }
                     }
                 }
@@ -791,24 +805,38 @@ public class UpdatingQuery {
      * @param startNode                    开始节点
      * @param endNode                      结束节点
      * @param relationshipType             关系的类型
+     * @param direction                    关系的方向
      * @param relationshipIntervalToObject 待设置的关系的结束时间
      * @return 如果关系的结束时间满足约束，则返回relationshipIntervalTo；反之，则报错。
      */
     @UserFunction("scypher.getIntervalToOfRelationship")
     @Description("Get the end time of relationship.")
-    public Object getIntervalToOfRelationship(@Name("startNode") Node startNode, @Name("endNode") Node endNode, @Name("relationshipType") String relationshipType, @Name("relationshipIntervalTo") Object relationshipIntervalToObject) {
+    public Object getIntervalToOfRelationship(@Name("startNode") Node startNode, @Name("endNode") Node endNode, @Name("relationshipType") String relationshipType, @Name("direction") String direction, @Name("relationshipIntervalTo") Object relationshipIntervalToObject) {
         if (startNode != null && endNode != null && relationshipType != null && relationshipIntervalToObject != null) {
             STimePoint startNodeIntervalTo = new STimePoint(startNode.getProperty("intervalTo"));
             STimePoint endNodeIntervalTo = new STimePoint(endNode.getProperty("intervalTo"));
             STimePoint relationshipIntervalTo = new STimePoint(relationshipIntervalToObject);
             // 检查relationshipIntervalTo的合法性
             if (!startNodeIntervalTo.isBefore(relationshipIntervalTo) && !endNodeIntervalTo.isBefore(relationshipIntervalTo)) {
-                List<Relationship> relationships = startNode.getRelationships(RelationshipType.withName(relationshipType)).stream().toList();
-                for (Relationship relationship : relationships) {
-                    if (relationship.hasProperty("intervalFrom") && relationship.hasProperty("intervalTo")) {
-                        SInterval relationInterval = new SInterval(new STimePoint(relationship.getProperty("intervalFrom")), new STimePoint(relationship.getProperty("intervalTo")));
-                        if ((relationship.getEndNode().equals(endNode) | relationship.getStartNode().equals(endNode)) && relationInterval.contains(relationshipIntervalTo)) {
-                            throw new RuntimeException("For relationships with the same content, start node and end node, their effective times do not overlap with each other");
+                if (direction.equalsIgnoreCase("RIGHT") | direction.equalsIgnoreCase("UNDIRECTED")) {
+                    List<Relationship> relationships = startNode.getRelationships(Direction.OUTGOING, RelationshipType.withName(relationshipType)).stream().toList();
+                    for (Relationship relationship : relationships) {
+                        if (relationship.hasProperty("intervalFrom") && relationship.hasProperty("intervalTo")) {
+                            SInterval relationInterval = new SInterval(new STimePoint(relationship.getProperty("intervalFrom")), new STimePoint(relationship.getProperty("intervalTo")));
+                            if (relationship.getEndNode().equals(endNode) && relationInterval.contains(relationshipIntervalTo)) {
+                                throw new RuntimeException("For relationships with the same content, start node and end node, their effective times do not overlap with each other");
+                            }
+                        }
+                    }
+                }
+                if (direction.equalsIgnoreCase("LEFT") | direction.equalsIgnoreCase("UNDIRECTED")) {
+                    List<Relationship> relationships = endNode.getRelationships(Direction.OUTGOING, RelationshipType.withName(relationshipType)).stream().toList();
+                    for (Relationship relationship : relationships) {
+                        if (relationship.hasProperty("intervalFrom") && relationship.hasProperty("intervalTo")) {
+                            SInterval relationInterval = new SInterval(new STimePoint(relationship.getProperty("intervalFrom")), new STimePoint(relationship.getProperty("intervalTo")));
+                            if (relationship.getEndNode().equals(startNode) && relationInterval.contains(relationshipIntervalTo)) {
+                                throw new RuntimeException("For relationships with the same content, start node and end node, their effective times do not overlap with each other");
+                            }
                         }
                     }
                 }

@@ -264,8 +264,8 @@ public class UpdatingQueryTest {
 
         this.session.run("CREATE (n:Person {name:'Nick', intervalFrom: scypher.timePoint('2010'), intervalTo: scypher.timePoint('NOW')}), " +
                 "(m:Person {name:'Tim',intervalFrom:scypher.timePoint('2010'), intervalTo:scypher.timePoint('NOW')})" +
-                "CREATE (n)-[e:FRIEND {intervalFrom:scypher.getIntervalFromOfRelationship(n, m, 'FRIEND', scypher.timePoint('2010')), " +
-                "intervalTo: scypher.getIntervalToOfRelationship(n, m, 'FRIEND', scypher.timePoint('2015'))}]->(m)");
+                "CREATE (n)-[e:FRIEND {intervalFrom:scypher.getIntervalFromOfRelationship(n, m, 'FRIEND', 'RIGHT', scypher.timePoint('2010')), " +
+                "intervalTo: scypher.getIntervalToOfRelationship(n, m, 'FRIEND', 'RIGHT', scypher.timePoint('2015'))}]->(m)");
         List<Record> records = this.session.run("MATCH (n:Person)-[e:FRIEND]->(m:Person)" +
                 "RETURN n.name, m.name, e.intervalFrom, e.intervalTo").list();
         for (Record record : records) {
@@ -273,15 +273,15 @@ public class UpdatingQueryTest {
         }
 
         this.session.run("MATCH (n:Person {name:'Nick'}), (m:Person {name:'Tim'})" +
-                "CREATE (n)-[:FRIEND {intervalFrom:scypher.getIntervalFromOfRelationship(n, m, 'FRIEND', scypher.timePoint('2016')), " +
-                "intervalTo: scypher.getIntervalToOfRelationship(n, m, 'FRIEND', scypher.timePoint('NOW'))}]->(m)");
+                "CREATE (n)-[:FRIEND {intervalFrom:scypher.getIntervalFromOfRelationship(n, m, 'FRIEND', 'RIGHT', scypher.timePoint('2016')), " +
+                "intervalTo: scypher.getIntervalToOfRelationship(n, m, 'FRIEND', 'RIGHT', scypher.timePoint('NOW'))}]->(m)");
         records = this.session.run("MATCH (n:Person)-[e:FRIEND]->(m:Person)" +
                 "RETURN n.name, m.name, e.intervalFrom, e.intervalTo").list();
         for (Record record : records) {
             System.out.println(record);
         }
         this.session.run("MATCH (n:Person {name:'Nick'}), (m:Person {name:'Tim'})" +
-                "CREATE (n)-[:FRIEND {intervalFrom:scypher.getIntervalFromOfRelationship(n, m, 'FRIEND', scypher.timePoint('2010')), " +
-                "intervalTo: scypher.getIntervalToOfRelationship(n, m, 'FRIEND', scypher.timePoint('NOW'))}]->(m)");
+                "CREATE (n)-[:FRIEND {intervalFrom:scypher.getIntervalFromOfRelationship(n, m, 'FRIEND','RIGHT', scypher.timePoint('2010')), " +
+                "intervalTo: scypher.getIntervalToOfRelationship(n, m, 'FRIEND','RIGHT', scypher.timePoint('NOW'))}]->(m)");
     }
 }
