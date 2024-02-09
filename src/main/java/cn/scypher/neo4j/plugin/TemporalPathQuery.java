@@ -11,6 +11,7 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 
 public class TemporalPathQuery {
 
@@ -40,6 +41,8 @@ public class TemporalPathQuery {
         pathIntervals.add(initialInterval);
         while (pathQueue.size() > 0) {
             Path currentPath = pathQueue.remove(pathQueue.size() - 1);
+            List<String> nodes_id = new ArrayList<>();
+            currentPath.nodes().forEach(node -> nodes_id.add(node.getElementId()));
             SInterval pathInterval = pathIntervals.remove(pathIntervals.size() - 1);
             Node currentNode = currentPath.endNode();
             // 限制边的方向、标签、有效时间和属性
@@ -68,18 +71,21 @@ public class TemporalPathQuery {
                 return true;
             }).toList();
             for (Relationship relationship : relationships) {
-                SInterval relationshipEffectiveTime = new SInterval(new STimePoint(relationship.getProperty("intervalFrom")), new STimePoint(relationship.getProperty("intervalTo")));
-                // 判断路径是否满足时序条件
-                if (continuousPathAlgo.check(pathInterval, relationshipEffectiveTime)) {
-                    Path path = new ExtendedPath(currentPath, relationship);
-                    if (path.length() >= minLength && path.length() <= maxLength) {
-                        if (relationship.getEndNode().equals(endNode)) {
-                            continuousPaths.add(new TemporalPath(path));
+                // 避免陷入死循环
+                if (!nodes_id.contains(relationship.getEndNode().getElementId())) {
+                    SInterval relationshipEffectiveTime = new SInterval(new STimePoint(relationship.getProperty("intervalFrom")), new STimePoint(relationship.getProperty("intervalTo")));
+                    // 判断路径是否满足时序条件
+                    if (continuousPathAlgo.check(pathInterval, relationshipEffectiveTime)) {
+                        Path path = new ExtendedPath(currentPath, relationship);
+                        if (path.length() >= minLength && path.length() <= maxLength) {
+                            if (relationship.getEndNode().equals(endNode)) {
+                                continuousPaths.add(new TemporalPath(path));
+                            }
                         }
-                    }
-                    if (path.length() < maxLength) {
-                        pathQueue.add(path);
-                        pathIntervals.add(continuousPathAlgo.update(pathInterval, relationshipEffectiveTime));
+                        if (path.length() < maxLength) {
+                            pathQueue.add(path);
+                            pathIntervals.add(continuousPathAlgo.update(pathInterval, relationshipEffectiveTime));
+                        }
                     }
                 }
             }
@@ -221,6 +227,17 @@ public class TemporalPathQuery {
         return sequentialPaths;
     }
 
+    /**
+     * 读取时序路径的信息
+     *
+     * @param startNode          开始节点
+     * @param endNode            结束节点
+     * @param isUndirected       是否有方向
+     * @param pathInfo           路径信息
+     * @param continuousPathAlgo 连续路径算法
+     * @param sPathType          顺序路径类型
+     * @return 返回满足条件的时序路径
+     */
     public List<TemporalPath> getTemporalPath(Node startNode, Node endNode, boolean isUndirected, Map<String, Object> pathInfo, ContinuousPathAlgo continuousPathAlgo, String sPathType) {
         // 读取路径的限制信息
         List<String> labels;
