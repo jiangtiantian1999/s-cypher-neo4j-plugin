@@ -114,6 +114,8 @@ public class TemporalPathQuery {
         while (pathQueue.size() > 0) {
             Path currentPath = pathQueue.remove(pathQueue.size() - 1);
             Node currentNode = currentPath.endNode();
+            List<String> nodes_id = new ArrayList<>();
+            currentPath.nodes().forEach(node -> nodes_id.add(node.getElementId()));
             // 限制边的方向、标签、有效时间和属性
             List<Relationship> relationships = currentNode.getRelationships(Direction.OUTGOING).stream().filter(relationship -> {
                 String type = relationship.getType().name();
@@ -141,40 +143,76 @@ public class TemporalPathQuery {
             }).toList();
             Relationship lastRelationship = currentPath.lastRelationship();
             for (Relationship relationship : relationships) {
-                SInterval relationshipEffectiveTime = new SInterval(new STimePoint(relationship.getProperty("intervalFrom")), new STimePoint(relationship.getProperty("intervalTo")));
-                // 判断路径是否为顺序有效路径
-                if (lastRelationship == null | (lastRelationship != null && new STimePoint(lastRelationship.getProperty("intervalTo")).isNotAfter(relationshipEffectiveTime.getIntervalFrom()))) {
-                    Path path = new ExtendedPath(currentPath, relationship);
-                    if (path.length() >= minLength && path.length() <= maxLength) {
-                        if (relationship.getEndNode().equals(endNode)) {
+                // 避免重复访问节点
+                if (!nodes_id.contains(relationship.getEndNode().getElementId())) {
+                    SInterval relationshipEffectiveTime = new SInterval(new STimePoint(relationship.getProperty("intervalFrom")), new STimePoint(relationship.getProperty("intervalTo")));
+                    // 判断路径是否为顺序有效路径
+                    if (lastRelationship == null | (lastRelationship != null && new STimePoint(lastRelationship.getProperty("intervalTo")).isNotAfter(relationshipEffectiveTime.getIntervalFrom()))) {
+                        Path path = new ExtendedPath(currentPath, relationship);
+                        if (path.length() >= minLength && path.length() <= maxLength) {
+                            if (relationship.getEndNode().equals(endNode)) {
+                                switch (sPathType) {
+                                    case "E" -> {
+                                        if (relationshipEffectiveTime.getIntervalTo().isNotAfter(timePoint)) {
+                                            if (relationshipEffectiveTime.getIntervalTo().isBefore(timePoint)) {
+                                                sequentialPaths.clear();
+                                                timePoint = relationshipEffectiveTime.getIntervalTo();
+                                            }
+                                            sequentialPaths.add(new TemporalPath(path));
+                                        }
+                                    }
+                                    case "L" -> {
+                                        Relationship firstRelationship = path.relationships().iterator().next();
+                                        STimePoint firstRelationshipStartTime = new STimePoint(firstRelationship.getProperty("intervalFrom"));
+                                        if (firstRelationshipStartTime.isNotBefore(timePoint)) {
+                                            if (firstRelationshipStartTime.isAfter(timePoint)) {
+                                                sequentialPaths.clear();
+                                                timePoint = firstRelationshipStartTime;
+                                            }
+                                            sequentialPaths.add(new TemporalPath(path));
+                                        }
+                                    }
+                                    case "S" -> {
+                                        if (path.length() <= length) {
+                                            if (path.length() < length) {
+                                                sequentialPaths.clear();
+                                                length = path.length();
+                                            }
+                                            sequentialPaths.add(new TemporalPath(path));
+                                        }
+                                    }
+                                    case "F" -> {
+                                        Relationship firstRelationship = path.relationships().iterator().next();
+                                        STimePoint firstRelationshipStartTime = new STimePoint(firstRelationship.getProperty("intervalFrom"));
+                                        Duration currentDuration = firstRelationshipStartTime.difference(relationshipEffectiveTime.getIntervalTo());
+                                        if (currentDuration.compareTo(duration) <= 0) {
+                                            if (currentDuration.compareTo(duration) < 0) {
+                                                sequentialPaths.clear();
+                                                duration = currentDuration;
+                                            }
+                                            sequentialPaths.add(new TemporalPath(path));
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        if (path.length() < maxLength) {
                             switch (sPathType) {
                                 case "E" -> {
                                     if (relationshipEffectiveTime.getIntervalTo().isNotAfter(timePoint)) {
-                                        if (relationshipEffectiveTime.getIntervalTo().isBefore(timePoint)) {
-                                            sequentialPaths.clear();
-                                            timePoint = relationshipEffectiveTime.getIntervalTo();
-                                        }
-                                        sequentialPaths.add(new TemporalPath(path));
+                                        pathQueue.add(path);
                                     }
                                 }
                                 case "L" -> {
                                     Relationship firstRelationship = path.relationships().iterator().next();
                                     STimePoint firstRelationshipStartTime = new STimePoint(firstRelationship.getProperty("intervalFrom"));
                                     if (firstRelationshipStartTime.isNotBefore(timePoint)) {
-                                        if (firstRelationshipStartTime.isAfter(timePoint)) {
-                                            sequentialPaths.clear();
-                                            timePoint = firstRelationshipStartTime;
-                                        }
-                                        sequentialPaths.add(new TemporalPath(path));
+                                        pathQueue.add(path);
                                     }
                                 }
                                 case "S" -> {
                                     if (path.length() <= length) {
-                                        if (path.length() < length) {
-                                            sequentialPaths.clear();
-                                            length = path.length();
-                                        }
-                                        sequentialPaths.add(new TemporalPath(path));
+                                        pathQueue.add(path);
                                     }
                                 }
                                 case "F" -> {
@@ -182,41 +220,8 @@ public class TemporalPathQuery {
                                     STimePoint firstRelationshipStartTime = new STimePoint(firstRelationship.getProperty("intervalFrom"));
                                     Duration currentDuration = firstRelationshipStartTime.difference(relationshipEffectiveTime.getIntervalTo());
                                     if (currentDuration.compareTo(duration) <= 0) {
-                                        if (currentDuration.compareTo(duration) < 0) {
-                                            sequentialPaths.clear();
-                                            duration = currentDuration;
-                                        }
-                                        sequentialPaths.add(new TemporalPath(path));
+                                        pathQueue.add(path);
                                     }
-                                }
-                            }
-                        }
-                    }
-                    if (path.length() < maxLength) {
-                        switch (sPathType) {
-                            case "E" -> {
-                                if (relationshipEffectiveTime.getIntervalTo().isNotAfter(timePoint)) {
-                                    pathQueue.add(path);
-                                }
-                            }
-                            case "L" -> {
-                                Relationship firstRelationship = path.relationships().iterator().next();
-                                STimePoint firstRelationshipStartTime = new STimePoint(firstRelationship.getProperty("intervalFrom"));
-                                if (firstRelationshipStartTime.isNotBefore(timePoint)) {
-                                    pathQueue.add(path);
-                                }
-                            }
-                            case "S" -> {
-                                if (path.length() <= length) {
-                                    pathQueue.add(path);
-                                }
-                            }
-                            case "F" -> {
-                                Relationship firstRelationship = path.relationships().iterator().next();
-                                STimePoint firstRelationshipStartTime = new STimePoint(firstRelationship.getProperty("intervalFrom"));
-                                Duration currentDuration = firstRelationshipStartTime.difference(relationshipEffectiveTime.getIntervalTo());
-                                if (currentDuration.compareTo(duration) <= 0) {
-                                    pathQueue.add(path);
                                 }
                             }
                         }
