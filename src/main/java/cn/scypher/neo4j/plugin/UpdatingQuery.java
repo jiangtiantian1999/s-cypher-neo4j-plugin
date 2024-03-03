@@ -169,7 +169,7 @@ public class UpdatingQuery {
                 throw new RuntimeException("Type mismatch: expected Node, Relationship or Path but was " + object.getClass().getSimpleName());
             }
         } else {
-            throw new RuntimeException("Missing parameter");
+            return new ArrayList<>();
         }
     }
 
